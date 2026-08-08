@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-means &amp; Kohonen — Présentation</title>
+<style>
+  :root{
+    --bg:#0e1116; --bg2:#151a22; --card:#ffffff;
+    --fg:#eef2f7; --muted:#9aa7b8; --line:#252c37;
+    --accent:#5eb0ff; --accent2:#7ee0c0; --warn:#ffcf6b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;padding:2.8vh 3.4vw 3.4vh}
+  .slide.active{display:flex}
+
+  .kicker{font-size:1vw;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:.4vh}
+  .slide h2{font-size:2.1vw;line-height:1.08;font-weight:800;letter-spacing:-.01em}
+  .slide h2 .dim{color:var(--muted);font-weight:600}
+  .params{margin-top:.7vh;display:flex;gap:.55vw;flex-wrap:wrap;align-items:center}
+  .tag{display:inline-block;background:var(--bg2);border:1px solid var(--line);color:var(--fg);font-weight:600;font-size:.95vw;padding:.3vh .75vw;border-radius:999px}
+  .tag.k{color:var(--accent2);border-color:rgba(126,224,192,.35)}
+  .tag.mse{color:var(--warn);border-color:rgba(255,207,107,.35)}
+  .tag.page{color:var(--accent);border-color:rgba(94,176,255,.4)}
+
+  /* gallery — vertical stack, always fits (max-height + max-width) */
+  .gallery{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;
+           gap:1.2vh;align-items:center;justify-content:center;margin-top:1.6vh}
+  .figure{background:var(--card);border-radius:var(--radius);padding:.6vh .6vw .2vh;display:flex;flex-direction:column;gap:.3vh;
+          box-shadow:0 12px 30px rgba(0,0,0,.4);max-width:100%;cursor:zoom-in;transition:transform .12s ease}
+  .figure:hover{transform:translateY(-2px)}
+  .figure img{object-fit:contain;border-radius:6px;display:block;margin:0 auto}
+  .figure figcaption{color:#48525f;font-size:.82vw;font-weight:600;text-align:center;padding-bottom:.2vh}
+
+  /* title / section / concept / conclusion */
+  .title{justify-content:center;align-items:flex-start;
+    background:radial-gradient(1200px 600px at 15% -10%, rgba(94,176,255,.14), transparent 60%),
+               radial-gradient(1000px 500px at 100% 120%, rgba(126,224,192,.12), transparent 55%);}
+  .title .big{font-size:4.6vw;font-weight:850;line-height:1.03;letter-spacing:-.02em;max-width:82vw}
+  .title .big em{font-style:normal;color:var(--accent)}
+  .title .lead{color:var(--muted);font-size:1.6vw;margin-top:2.2vh;max-width:62vw}
+  .title .meta{margin-top:4vh;color:var(--muted);font-size:1.1vw;display:flex;gap:1vw;flex-wrap:wrap}
+
+  .section{justify-content:center;background:radial-gradient(900px 500px at 12% 10%, rgba(94,176,255,.10), transparent 60%);}
+  .section .num{font-size:9vw;font-weight:850;color:var(--bg2);-webkit-text-stroke:2px var(--accent);line-height:.9;letter-spacing:-.03em}
+  .section h2{font-size:3.2vw;margin-top:1vh}
+  .section p{color:var(--muted);font-size:1.3vw;margin-top:1.2vh;max-width:60vw}
+  .section .count{margin-top:2vh;color:var(--accent2);font-weight:700;font-size:1.15vw}
+
+  table.nat{width:100%;border-collapse:collapse;margin-top:2.4vh;font-size:1.1vw}
+  table.nat th,table.nat td{border:1px solid var(--line);padding:1.2vh 1vw;text-align:left;vertical-align:top}
+  table.nat thead th{background:var(--bg2);color:var(--accent);font-size:.92vw;letter-spacing:.05em;text-transform:uppercase}
+  table.nat td{color:var(--muted)} table.nat td b{color:var(--fg)}
+  table.nat tr td:first-child{color:var(--fg);font-weight:700;width:14%}
+  .same{color:var(--accent2);font-weight:700}
+  .caption{margin-top:1.6vh;color:var(--muted);font-size:1.12vw;line-height:1.4;max-width:70vw}
+  .caption b{color:var(--fg)}
+
+  .concl ul{margin-top:2vh;list-style:none;display:flex;flex-direction:column;gap:1.3vh;max-width:82vw}
+  .concl li{font-size:1.28vw;line-height:1.4;padding-left:2.2vw;position:relative;color:var(--muted)}
+  .concl li::before{content:"";position:absolute;left:0;top:.5vh;width:1vw;height:1vw;border-radius:4px;background:var(--accent)}
+  .concl li b{color:var(--fg)} .concl li.warn::before{background:var(--warn)}
+
+  /* PCA figure slides — image en grand, en-tête et légende compacts */
+  .pcafig{padding-top:1.8vh;padding-bottom:2vh}
+  .pcafig h2{font-size:1.8vw}
+  .pcafig .gallery{margin-top:.8vh}
+  .pcafig .figure{padding:.35vh .35vw}
+  .pcafig .caption{margin-top:.9vh;font-size:1.02vw;line-height:1.35;max-width:92vw}
+
+  /* report text slides */
+  .report{justify-content:flex-start}
+  .report .body{margin-top:1.8vh;display:flex;flex-direction:column;gap:1.3vh;max-width:84vw;overflow-y:auto;padding-right:1vw}
+  .report .body p{font-size:1.22vw;line-height:1.5;color:#c7d1de;text-align:justify}
+  .report .body p::first-letter{font-weight:700;color:var(--fg)}
+
+  .progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .25s ease;z-index:20}
+  .counter{position:fixed;bottom:1.4vh;right:2vw;color:var(--muted);font-size:.92vw;font-variant-numeric:tabular-nums;z-index:20}
+  .hint{position:fixed;bottom:1.4vh;left:2vw;color:#3a434f;font-size:.82vw;z-index:20}
+  .navzone{position:fixed;top:0;bottom:0;width:12vw;z-index:5;cursor:pointer}
+  .navzone.left{left:0} .navzone.right{right:0}
+
+  #lb{position:fixed;inset:0;background:rgba(6,9,13,.94);display:none;z-index:40;cursor:zoom-out;padding:3vh 3vw}
+  #lb.open{display:flex;align-items:center;justify-content:center}
+  #lb img{max-width:100%;max-height:100%;object-fit:contain;background:#fff;border-radius:10px;padding:1vh 1vw;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  #lb .lbhint{position:fixed;top:2.4vh;right:2.6vw;color:var(--muted);font-size:1vw}
+
+  @media print{
+    body{overflow:visible;background:#fff}
+    .slide{position:relative;display:flex!important;min-height:100vh;page-break-after:always;border-bottom:1px solid #ddd}
+    .progress,.counter,.hint,.navzone,#lb{display:none}
+    .kicker{color:#0a66c2}.slide h2,.title .big,.section h2{color:#0b0f14}
+    .caption,.section p,.title .lead,.concl li,.tag{color:#333}
+    .figure{box-shadow:none;border:1px solid #ddd}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck"></div>
+<div class="navzone left"  onclick="go(-1)"></div>
+<div class="navzone right" onclick="go(1)"></div>
+<div class="counter" id="counter"></div>
+<div class="hint">← → naviguer · clic sur une figure = zoom · F plein écran</div>
+<div id="lb" onclick="closeLb()"><span class="lbhint">Échap / clic pour fermer</span><img id="lbimg" alt=""></div>
+
+<script>
+const BASE="Rapport%20Unsupervised%20Deep%20Learning/";
+const src=n=>BASE+(n===0?"image.png":"image%20"+n+".png");
+const range=(a,b)=>{const o=[];for(let i=a;i<=b;i++)o.push(i);return o;};
+const ROLE7=["Métadonnées","Courbe d'entraînement","Reconstructions — train","Reconstructions — test","Distribution des classes — train","Distribution des classes — test","Dictionnaire / Carte"];
+const ROLE5=["Métadonnées","Courbe d'entraînement","Reconstructions — train","Reconstructions — test","Dictionnaire"];
+const PER=2;
+
+// one test -> several slides (chunks of PER figures)
+function testChunks(t){
+  const roles = t.imgs.length===7?ROLE7 : t.imgs.length===5?ROLE5 : null;
+  const chunks=[]; for(let s=0;s<t.imgs.length;s+=PER) chunks.push(t.imgs.slice(s,s+PER));
+  const total=chunks.length;
+  return chunks.map((chunk,ci)=>{
+    const figs=chunk.map((idx,j)=>{
+      const gi=ci*PER+j;
+      const cap=roles?`<figcaption>${roles[gi]}</figcaption>`:"";
+      const ih=chunk.length===1?'74vh':'36vh';
+      return `<figure class="figure" onclick="openLb('${src(idx)}')"><img loading="lazy" style="max-height:${ih};max-width:86vw" src="${src(idx)}" alt="">${cap}</figure>`;
+    }).join('');
+    const pill = total>1?`<span class="tag page">${ci+1}/${total}</span>`:'';
+    const tags = t.tags.map(x=>`<span class="tag ${x.c||''}">${x.t}</span>`).join('')+pill;
+    return `<section class="slide">
+      <div class="kicker">${t.kicker}</div>
+      <h2>Test ${t.n} — <span class="dim">${t.title}</span></h2>
+      <div class="params">${tags}</div>
+      <div class="gallery">${figs}</div>
+    </section>`;
+  });
+}
+const sectionSlide=(num,title,desc,count)=>`<section class="slide section">
+  <div class="num">${num}</div><h2>${title}</h2><p>${desc}</p><div class="count">${count}</div></section>`;
+
+// conclusion text of a section (verbatim from the report), 2 paragraphs / slide
+function conclSlides(sec,paras){
+  const per=2,chunks=[];
+  for(let s=0;s<paras.length;s+=per) chunks.push(paras.slice(s,s+per));
+  const total=chunks.length;
+  return chunks.map((ch,ci)=>{
+    const pill=total>1?`<span class="tag page">${ci+1}/${total}</span>`:'';
+    return `<section class="slide report">
+      <div class="kicker">Conclusion du rapport</div>
+      <h2>${sec}</h2>
+      <div class="params">${pill}</div>
+      <div class="body">${ch.map(p=>`<p>${p}</p>`).join('')}</div>
+    </section>`;
+  });
+}
+
+// conclusions verbatim from the report, keyed by section number
+const CONCL={
+ "01":[
+  `Sur le dataset mnist nos tests nous permettes de conclure que pour 10 classes, plus on augmente notre nombre de centroid plus les images générer ainsi que les compressions / décompressions sont plus claire et moins floue. On peut déduire qu'avoir plusieurs centroid permet moins de diversité de classe par cluster, comme ce qu'on observe dans nos bar chart de l'espace latent, et ça permet d'avoir de meilleurs représentant en fonction des différentes manières d'écrire des chiffres dans le dataset mnist. Par conséquent, ça améliore les résultats de compression / décompression.`,
+ ],
+ "02":[
+  `On peut conclure sur kmeans avec l'algorithme de Lloyd que à partir de k = 100 le flou est assez bas pour reconnaitre l'image et à partir de K = 300 on réduit assez le floue pour être presque net. Si on met un k = 1000 ou k = 500 les images sont de bonne qualité avec une répartition par cluster de presque 1 classe par cluster avec peu de diversité dans les clusters.`,
+  `Si on met les k = 3 on se retrouve avec des images floue très peu reconnaissable, en fonction de l'initialisation toutes mes classes ne sont pas représenter parmi les 3 centroids qui sont généré.`,
+  `Même constat que pour mnist même avec moins de classe, augmenter le nombre de centroid permet moins de diversité dans les classes et donc d'avoir de meilleurs représentant pour chaque classe.`,
+  `Néanmoins on voit que sur notre dataset, certaine classe sont mieux représenté que d'autre. Les chats sont difficilement représenter, les dessins de chats diffères beaucoup en fonction de qui les as dessiné, on a quand même un forme global qui se dessine sur les centroids. Les pommes sont très bien représenté, on reconnait bien leurs forme ronde avec une tige. Les voitures c'est très variables, la forme qui est conservé est celle de la voiture longue avec les deux roues vue de profils.`,
+  `Sur les taches de compression / decompression, kmeans reste imparfait et floue du à l'utilisation de la distance euclidienne.`,
+ ],
+ "03":[
+  `Pour approfondir nos tests, on a ajouter plusieurs classe disponible dans le dataset quickdraw, pour se retrouver avec 10 classes (cat, apple, car, fish, house, tree, clock, star, umbrella, airplane).`,
+  `Dans cette versions on a testé k = 10, k = 100, k = 1000 et k = 5000, on peut en conclure qu'avec un k = au nombre de classe, on obtiens pas de bon résultat, il y a trop de diversité par classe, avec 10 classes en fonction de l'initialisation on peut se retrouver avec des classes non représenté.`,
+  `Ensuite, pour k = 100, on observe une amélioration mais toujours très floue, on commence à reconnaitre les formes globales de chacune des classes du dataset, on remarque que l'ajout de classe rend la compression / décompression moins claire avec un k = 100 que pour 3 classes. On a encore trop de diversité de classe par cluster mais on commence à voir l'apparition d'un représentant plus fort d'une seule classe dans chaque cluster.`,
+  `Pour k = 1000, on a beaucoup moins de diversité par cluster. On a une nette amélioration sur les taches de compression / décompression sur mon dataset. Faire un x10 sur K à permis une amélioration sur la représentation de chaque classe de notre dataset.`,
+  `Pour k = 5000, les images sont beaucoup mieux représentés, on voit que chaque dessins à une images décompresser qui ressemble plus à ça forme et pas seulement une forme global. ça reste floue mais on a une bien meilleures représentation. Par contre, je ne peux que déduire qu'on a moins de classe de cluster, l'affichage des bar charts, ne fonctionne pas pour k = 5000.`,
+ ],
+ "04":[
+  `Pour Kohonen, les résultats sont similaires à ceux de K-means, à la différence de la disposition des centroids, comme on peut visualiser dans la carte de kohonen, on voit ques les images proches se retrouve côte à côte et ça produit comme un "dégradé" d'images.`,
+  `On remarque aussi, que augmenter la taille de la grille produit des résultats similaire à augmenter le K sur K-means, plus la grille est grande moins on retrouve de diversité dans chaque cluster.`,
+  `Pour une grille 10x10, les images restes floue mais reconnaissable, on voit bien que le rapprochement entre les centroids proches c'est bien fais mais on voit que certaine classe comme le 4 et le 7 sont mal représenté.`,
+  `Pour une grille de 20x20 on commence à avoir de meilleurs résultats, moins de diversité dans chaque cluster, une meilleurs représentation globale de chaque classe. On voit que les classes mal représenté en 10x10 sont ici bien représenté. Les 4 et 7 on est représenter reconnaissable. On garde un aspect globale floue.`,
+ ],
+ "05":[
+  `Pour le quickdraw dataset, avec kohonen même constat que sur mnist, plus on augmente notre taille de grille plus les résultats de compression / décompression et génération sont moins floue et plus reconnaissable. Le nombre d'époque et le gamma influe sur la qualité des rapprochement. Un gamma assez petit avec beaucoup d'époque permet de bien rapprocher entre eux. Plus gamma et petit, moins il affecte c'est voisin quand on update la position des centroids. Plus un gamma est grand plus le nombre de voisin affecter est grand. Donc avec un grand nombre d'époque et une petit gamma, on laisse le temps à l'algo de correctement faire les rapprochement.`,
+  `Si on test avec une petite grille de 1x1 ou 3x3 on se retrouve avec des resultats peut reconnaissable avec un vague début de forme. Comme pour kmeans, avec peut de centroid on a trop de diversité par cluster pour avoir de bonnes représentation. En 3x3, on voit par contre que kohonen fonctionne bien car il commence déjà à faire le rapprochement entre les éléments qui se ressemble.`,
+  `Avec une grille de 10x10, on commence par avoir de meilleurs résultat, les éléments se regroupe bien dans la carte de kohonen et les images sont plus reconnaissable avec un de réprésentant pour les différents cas du dataset. On a toujours des images floues et des formes pas claire. On voit bien dans les histogrammes, moins de diversité par classe que pour les petites grilles.`,
+  `Pour une grille de 20x20, on commence à bien reconnaitre les résultats, pour obtenir les résultats on a passé le gamma à 0.5 on remarque qu'un gamma plus petit permet d'avoir de meilleurs résultat. Une grille de 20x20 permet d'avoir de meilleurs résultats.`,
+ ],
+};
+
+const slides=[];
+
+slides.push(`<section class="slide title">
+  <div class="big">Compresser une image<br>par <em>quantification</em></div>
+  <div class="lead">K-means &amp; Kohonen — deux dictionnaires appris, un même codec.<br>Tous nos cas d'expérimentation sur MNIST et QuickDraw.</div>
+  <div class="meta"><span>Deep Learning non supervisé</span><span>·</span><span>26 tests</span></div>
+</section>`);
+
+slides.push(`<section class="slide">
+  <div class="kicker">Le principe</div>
+  <h2>Encoder une image = <span class="dim">l'indice de son prototype</span></h2>
+  <table class="nat">
+    <thead><tr><th>Algo</th><th>Espace latent</th><th>CodeBook</th><th>CodeByte / image</th><th>Compression</th></tr></thead>
+    <tbody>
+      <tr><td>K-means<br>(k=300)</td><td><b>Entier discret</b> : indice du cluster ∈ {0…k−1}</td><td>les <b>k centroïdes</b> (k × 784 flottants)</td><td>⌈log₂300⌉ = <b>9 bits</b></td><td><b>697:1</b></td></tr>
+      <tr><td>Kohonen<br>(k=300)</td><td><b>Entier discret</b> : indice du neurone gagnant (BMU)</td><td>les <b>k feature vectors</b></td><td><span class="same">9 bits — identique</span></td><td><span class="same">≈ 697:1</span></td></tr>
+    </tbody>
+  </table>
+  <div class="caption">Même codec, même compression. Toute la différence est dans <b>comment le dictionnaire s'organise</b> — c'est ce que montrent les tests qui suivent.</div>
+</section>`);
+
+const groups=[
+ { sec:["01","K-means · MNIST","Chaque image → le centroïde le plus proche. On fait varier k.","4 tests · n = 60 000"],
+   tests:[
+     {kicker:"K-means · MNIST",n:1,title:"k = 300",tags:[{t:"k = 300",c:"k"},{t:"MSE 0,031",c:"mse"},{t:"697:1"}],imgs:range(0,6)},
+     {kicker:"K-means · MNIST",n:2,title:"k = 10",tags:[{t:"k = 10",c:"k"},{t:"MSE 0,050",c:"mse"},{t:"1568:1"}],imgs:range(7,13)},
+     {kicker:"K-means · MNIST",n:3,title:"k = 100",tags:[{t:"k = 100",c:"k"},{t:"MSE 0,036",c:"mse"},{t:"896:1"}],imgs:range(14,20)},
+     {kicker:"K-means · MNIST",n:4,title:"k = 500",tags:[{t:"k = 500",c:"k"},{t:"MSE 0,029",c:"mse"},{t:"697:1"}],imgs:range(21,26)},
+   ]},
+ { sec:["02","K-means · QuickDraw (3 classes)","cat · apple · car. Balayage de k = 3 à 1000.","8 tests · n = 25 715"],
+   tests:[
+     {kicker:"K-means · QuickDraw 3 cl.",n:1,title:"k = 3 (tout le train)",tags:[{t:"k = 3",c:"k"},{t:"MSE 0,079",c:"mse"}],imgs:range(27,29)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:2,title:"k = 3 (autre seed)",tags:[{t:"k = 3",c:"k"},{t:"seed ≠"}],imgs:range(30,37)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:3,title:"k = 10",tags:[{t:"k = 10",c:"k"}],imgs:range(38,41)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:4,title:"k = 50",tags:[{t:"k = 50",c:"k"},{t:"MSE 0,063",c:"mse"}],imgs:range(42,45)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:5,title:"k = 100",tags:[{t:"k = 100",c:"k"},{t:"MSE 0,061",c:"mse"}],imgs:range(46,49)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:6,title:"k = 200",tags:[{t:"k = 200",c:"k"},{t:"MSE 0,058",c:"mse"}],imgs:range(50,53)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:7,title:"k = 500",tags:[{t:"k = 500",c:"k"},{t:"MSE 0,054",c:"mse"}],imgs:range(54,60)},
+     {kicker:"K-means · QuickDraw 3 cl.",n:8,title:"k = 1000",tags:[{t:"k = 1000",c:"k"},{t:"MSE 0,051",c:"mse"}],imgs:range(61,67)},
+   ]},
+ { sec:["03","K-means · QuickDraw (10 classes)","cat, apple, car, fish, house, tree, clock, star, umbrella, airplane.","5 tests · n = 51 429"],
+   tests:[
+     {kicker:"K-means · QuickDraw 10 cl.",n:1,title:"k = 10",tags:[{t:"k = 10",c:"k"},{t:"MSE 0,075",c:"mse"}],imgs:range(68,75)},
+     {kicker:"K-means · QuickDraw 10 cl.",n:2,title:"k = 100",tags:[{t:"k = 100",c:"k"},{t:"MSE 0,064",c:"mse"}],imgs:range(76,83)},
+     {kicker:"K-means · QuickDraw 10 cl.",n:3,title:"k = 500",tags:[{t:"k = 500",c:"k"},{t:"MSE 0,057",c:"mse"}],imgs:range(84,90)},
+     {kicker:"K-means · QuickDraw 10 cl.",n:4,title:"k = 1000",tags:[{t:"k = 1000",c:"k"},{t:"MSE 0,054",c:"mse"}],imgs:range(91,97)},
+     {kicker:"K-means · QuickDraw 10 cl.",n:5,title:"k = 5000",tags:[{t:"k = 5000",c:"k"},{t:"MSE 0,045",c:"mse"},{t:"bar charts KO"}],imgs:range(98,102)},
+   ]},
+ { sec:["04","Kohonen (SOM) · MNIST","Même codec, mais les neurones sur une grille : le gagnant ET ses voisins bougent.","2 tests · n = 60 000"],
+   tests:[
+     {kicker:"Kohonen · MNIST",n:1,title:"grille 10 × 10",tags:[{t:"10×10 = 100",c:"k"},{t:"α 0,1"},{t:"γ 1,0"},{t:"8 époques"}],imgs:range(103,109)},
+     {kicker:"Kohonen · MNIST",n:2,title:"grille 20 × 20",tags:[{t:"20×20 = 400",c:"k"},{t:"MSE 0,037",c:"mse"},{t:"γ 1,0"},{t:"8 époques"}],imgs:range(110,116)},
+   ]},
+ { sec:["05","Kohonen (SOM) · QuickDraw (3 classes)","On fait varier γ, le nombre d'époques et la taille de grille.","7 tests"],
+   tests:[
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:1,title:"γ = 1 · 10×10 · 8 époques",tags:[{t:"10×10",c:"k"},{t:"γ 1,0"},{t:"8 ép."}],imgs:range(117,122)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:2,title:"γ = 0,5 · 10×10 · 8 époques",tags:[{t:"10×10",c:"k"},{t:"γ 0,5"},{t:"8 ép."}],imgs:range(123,129)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:3,title:"γ = 0,5 · 10×10 · 100 époques",tags:[{t:"10×10",c:"k"},{t:"γ 0,5"},{t:"100 ép."}],imgs:range(130,136)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:4,title:"γ = 0,5 · 10×10 · 100 ép · dataset complet",tags:[{t:"10×10",c:"k"},{t:"γ 0,5"},{t:"100 ép."},{t:"dataset complet"}],imgs:range(137,143)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:5,title:"γ = 1 · 20×20 · 8 ép · dataset complet",tags:[{t:"20×20",c:"k"},{t:"γ 1,0"},{t:"8 ép."},{t:"dataset complet"}],imgs:range(144,150)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:6,title:"grille 1 × 1 (cas extrême)",tags:[{t:"1×1 = 1",c:"k"},{t:"MSE 0,094",c:"mse"},{t:"γ 0,5"},{t:"100 ép."}],imgs:range(151,157)},
+     {kicker:"Kohonen · QuickDraw 3 cl.",n:7,title:"grille 3 × 3 (petite grille)",tags:[{t:"3×3 = 9",c:"k"},{t:"MSE 0,078",c:"mse"},{t:"γ 0,5"},{t:"100 ép."}],imgs:range(158,164)},
+   ]},
+];
+
+groups.forEach(g=>{
+  slides.push(sectionSlide(...g.sec));
+  g.tests.forEach(t=>{ testChunks(t).forEach(s=>slides.push(s)); });
+});
+
+// ===== 06 · PCA =====
+const pcaFig=nn=>"pca/Aspose.Words.3f6eedf4-5f32-4db0-9bd9-628ab8a5cdf8."+nn+".png";
+slides.push(sectionSlide("06","PCA — Analyse en Composantes Principales","Méthode linéaire non supervisée : réduction de dimension, compression, génération. MNIST vs QuickDraw.","17 figures"));
+
+slides.push(`<section class="slide concl">
+  <div class="kicker">PCA · principe</div>
+  <h2>Qu'est-ce que la PCA ?</h2>
+  <ul>
+    <li><b>Linéaire, non supervisée</b> : cherche des axes orthogonaux (les composantes principales) qui concentrent le maximum de <b>variance</b> dans le moins d'axes possible.</li>
+    <li><b>Encoder</b> : z = Wₖᵀ (x − μ) → k réels. <b>Décoder</b> : x̂ = μ + Wₖ·z (image moyenne + combinaison d'eigen-images).</li>
+    <li>L'erreur de reconstruction = <b>somme des valeurs propres écartées</b> : aucune projection linéaire ne fait mieux à k fixé.</li>
+    <li><b>k = 68</b> pour MNIST (87 % de variance) contre <b>k = 403</b> pour QuickDraw (98,8 %) — QuickDraw est bien plus dur à résumer linéairement.</li>
+  </ul>
+</section>`);
+
+slides.push(`<section class="slide">
+  <div class="kicker">PCA · métadonnées comparées</div>
+  <h2>Deux jeux, deux niveaux de complexité</h2>
+  <table class="nat">
+    <thead><tr><th>Métrique</th><th>MNIST</th><th>QuickDraw</th></tr></thead>
+    <tbody>
+      <tr><td>Composantes k</td><td><b>68</b></td><td><b>403</b></td></tr>
+      <tr><td>Variance expliquée</td><td>87,0 %</td><td>98,8 %</td></tr>
+      <tr><td>Images d'entraînement</td><td>60 000</td><td>25 715</td></tr>
+      <tr><td>MSE de reconstruction</td><td>0,0075</td><td>0,0008</td></tr>
+      <tr><td>Classes</td><td>10 chiffres</td><td>3 (cat, apple, car)</td></tr>
+    </tbody>
+  </table>
+  <div class="caption">Même protocole (centrage par pixel, 784 dimensions) — seul le nombre de composantes retenu diffère fortement.</div>
+</section>`);
+
+slides.push(`<section class="slide">
+  <div class="kicker">PCA · le codec vu en octets</div>
+  <h2>Alice &amp; Bob : le coût réel</h2>
+  <table class="nat">
+    <thead><tr><th>Élément</th><th>MNIST</th><th>QuickDraw</th></tr></thead>
+    <tbody>
+      <tr><td>Espace latent</td><td><b>ℝ⁶⁸</b> continu</td><td><b>ℝ⁴⁰³</b> continu</td></tr>
+      <tr><td>Image compressée (float32)</td><td>272 o</td><td>1 612 o</td></tr>
+      <tr><td>Gain réel / image</td><td class="same">×2,88</td><td>×0,49 (expansion)</td></tr>
+      <tr><td>Dictionnaire μ + Wₖ</td><td>≈ 211 Kio</td><td>≈ 1,21 Mio</td></tr>
+      <tr><td>PSNR</td><td>21,2 dB</td><td>31,0 dB</td></tr>
+    </tbody>
+  </table>
+  <div class="caption">Le taux <b>784/k</b> est trompeur : en octets float32, MNIST gagne ×2,88 mais QuickDraw <b>gonfle</b> (×0,49). Quantifier z en int8 rétablirait ×11,5 / ×1,95.</div>
+</section>`);
+
+const PCAFIGS=[
+ ["1.1 · Projection latente","Nuage PC1×PC2 (et ×PC3) — entraînement","001","MNIST : le <b>1</b> forme un amas compact et séparé, les autres chiffres se chevauchent. QuickDraw : <b>apple</b> se détache, <b>cat</b> et <b>car</b> se mélangent."],
+ ["1.1 · Projection latente","Même projection — jeu de test","002","La structure de l'entraînement se retrouve sur le test : les axes appris <b>généralisent</b>."],
+ ["1.2 · Composante dominante","Composante dominante par classe — entraînement","003","Pureté ≈ <b>32 %</b> (MNIST, 10 classes) / <b>50 %</b> (QuickDraw, 3 classes). L'info de classe se concentre sur PC1–PC8."],
+ ["1.2 · Composante dominante","Composante dominante par classe — test","004","Même lecture sur le test : une poignée de composantes de tête portent l'essentiel de la séparation."],
+ ["1.3 · Eigen-images","Image moyenne + 12 premières composantes","005","Chaque composante, remise en 28×28, est une <b>eigen-image</b> : un mode de variation ajouté à l'image moyenne."],
+ ["1.3 · Eigen-images","Composantes en carte +/−","006","Rouge = ajoute de l'encre, bleu = en retire. MNIST dessine des traits nets ; QuickDraw, des anneaux flous (variance sur le contour)."],
+ ["1.4 · Spectre de variance","Scree plot &amp; variance cumulée","007","MNIST : <b>87 PC</b> pour 90 %. QuickDraw : <b>183 PC</b> pour 90 % — décroissance bien plus lente."],
+ ["1.5 · Effet du centrage","Variance cumulée : par pixel vs global","008","Le centrage global converge plus vite au début… en gaspillant une composante à ré-encoder l'image moyenne."],
+ ["1.5 · Effet du centrage","PC1 selon le centrage vs image moyenne","009","Le centrage <b>par pixel</b> (retenu) laisse les composantes porter une information réellement discriminante."],
+ ["2.1 · Compromis qualité/taille","MSE &amp; taux de compression selon k","010","À k égal, MNIST atteint toujours une MSE plus basse. QuickDraw part de plus haut et s'aplatit plus lentement."],
+ ["2.2 · Codec en action","Original vs reconstruction — entraînement","011","MNIST (68 PC, ×11,5) : reconstruction très fidèle, léger flou des contours."],
+ ["2.2 · Codec en action","Original vs reconstruction — test","012","Même qualité sur des images jamais vues : la PCA <b>généralise</b>, elle ne mémorise pas."],
+ ["2.3 · Qualité à k croissant","Reconstruction d'une image à k croissant","013","Des grands traits globaux (petit k) vers les détails fins (grand k). QuickDraw garde un flou sur les traits fins."],
+ ["2.4 · Erreur normalisée","Variance non expliquée selon k","014","k=100 : MNIST ne perd que <b>8,4 %</b>, QuickDraw encore <b>21,8 %</b>. Il faut k≈400 à QuickDraw pour égaler MNIST."],
+ ["3.1 · Génération","Échantillonnage gaussien latent par classe","015","MNIST : chiffres crédibles et variés. QuickDraw : <b>cat</b>/<b>car</b> bruités, seule <b>apple</b> reste reconnaissable."],
+ ["3.2 · Test de sanité","Moyenne des pixels vs code latent moyen décodé","016","Les deux colonnes sont indiscernables : le pipeline de reconstruction est cohérent."],
+ ["3.3 · Interpolation","Interpolation latente entre deux images","017","MNIST : 0→1 <b>fluide</b> et lisible. QuickDraw : cat→apple continue mais sans étape sémantiquement claire."],
+];
+PCAFIGS.forEach(([sub,t,nn,cap])=>{
+  slides.push(`<section class="slide pcafig">
+    <div class="kicker">PCA · ${sub}</div>
+    <h2>${t}</h2>
+    <div class="gallery"><figure class="figure" onclick="openLb('${pcaFig(nn)}')"><img loading="lazy" style="max-height:82vh;max-width:96vw" src="${pcaFig(nn)}" alt=""></figure></div>
+    <div class="caption">${cap}</div>
+  </section>`);
+});
+
+conclSlides("PCA — Conclusion générale",[
+  `Ce rapport a montré, sur les trois usages classiques de la PCA (réduction de dimension, compression/décompression et génération), un contraste systématique entre MNIST et QuickDraw : à protocole identique, MNIST — chiffres manuscrits stylisés — concentre sa variance sur un petit nombre de composantes (68 pour 87 %, 87 pour 90 %) et se prête bien aux trois usages, y compris à la génération d'images crédibles. QuickDraw — croquis à main levée aux traits fins et aux formes plus libres — nécessite systématiquement 3 à 4 fois plus de composantes pour un niveau de fidélité comparable (403 composantes pour 98,8 % de variance, 183 pour seulement 90 %), et sa génération par échantillonnage gaussien latent produit des images nettement plus bruitées.`,
+  `Cette différence tient à la nature des deux jeux : les 784 pixels de MNIST codent une information structurée et récurrente (chiffres stylisés), tandis que ceux de QuickDraw codent une variabilité plus fine et moins corrélée (angle des traits, imprécisions du tracé à main levée) — justement ce que la PCA, linéaire, capture le moins bien. Ces limites ouvrent la voie aux méthodes non linéaires : auto-encodeurs profonds, VAE, GANs, diffusion.`,
+]).forEach(s=>slides.push(s));
+
+// ===== 07 · AutoEncoder simple =====
+// images réelles dans documentation/autoencoder/ : image.png, image-1.png … image-23.png
+const aeSrc=n=>"autoencoder/"+(n===0?"image.png":"image-"+n+".png");
+
+slides.push(sectionSlide("07","AutoEncoder simple — activation latente",
+  "Encodeur–décodeur non linéaire, latent_dim = 2, sur QuickDraw (cat · apple · car). On fait varier la seule activation de la couche latente.",
+  "4 configs · linéaire · tanh · ReLU · sigmoïde"));
+
+slides.push(`<section class="slide concl">
+  <div class="kicker">AutoEncoder · principe</div>
+  <h2>Un codec appris, non linéaire</h2>
+  <ul>
+    <li><b>Encodeur</b> comprime l'image (784 px) en un code <b>z ∈ ℝ²</b> ; le <b>décodeur</b> la reconstruit. Les deux sont entraînés ensemble pour minimiser la <b>MSE</b> de reconstruction.</li>
+    <li>Contrairement à la PCA (linéaire), les couches cachées <b>ReLU</b> rendent la transformation non linéaire — mais le latent n'est <b>pas régularisé</b> (c'est la différence avec un VAE).</li>
+    <li><b>Config fixe</b> : dense 128 → 32, sortie sigmoïde, Adam (1e-3), seed 42. Seule l'<b>activation de la couche latente</b> varie : linéaire, tanh, ReLU, sigmoïde.</li>
+    <li><b>Génération</b> : faute de latent régularisé, on échantillonne la <b>gaussienne empirique</b> (μ, Σ) des codes réels, puis on décode.</li>
+  </ul>
+</section>`);
+
+const AE=[
+ {act:"Linéaire (référence)",
+  tags:[{t:"linéaire",c:"page"},{t:"meilleur",c:"k"}],
+  finding:"Latent <b>libre</b> (non borné) : les trois classes forment des lobes distincts (apple, car, cat), la grille décodée est un manifold continu et la génération produit des formes cohérentes. <b>Meilleur compromis</b> des quatre.",
+  figs:[[0,"Compression — train"],[1,"Compression — test"],[2,"Espace latent — nuage train"],[3,"Espace latent — nuage test"],[4,"Grille 2D décodée"],[5,"Génération — gaussienne empirique"]]},
+ {act:"tanh",
+  tags:[{t:"tanh",c:"page"},{t:"latent saturé",c:"mse"}],
+  finding:"L'activation borne z à [−1, 1] : le nuage <b>sature et s'effondre</b> dans le coin (≈ 1, −1). L'espace latent est écrasé — visualisation et génération quasi inexploitables.",
+  figs:[[6,"Compression — train"],[7,"Compression — test"],[8,"Espace latent — train"],[9,"Espace latent — test"],[10,"Génération"]]},
+ {act:"ReLU",
+  tags:[{t:"ReLU",c:"page"},{t:"exploitable",c:"k"},{t:"MSE ≈ 0,062",c:"mse"}],
+  finding:"z ≥ 0 : le latent est confiné au <b>quadrant positif</b> mais reste bien étalé — apple en diagonale, car à droite, cat près de 0. Reconstruction et génération correctes.",
+  figs:[[11,"Courbe de loss — MSE/époque"],[12,"Compression — train"],[13,"Compression — test"],[14,"Espace latent — train"],[15,"Espace latent — test"],[16,"Grille 2D décodée"],[17,"Génération"]]},
+ {act:"Sigmoïde",
+  tags:[{t:"sigmoïde",c:"page"},{t:"effondrement",c:"mse"}],
+  finding:"<b>Effondrement total</b> : z sature à (1, 1), <b>toutes</b> les images partagent le même code et la même reconstruction, la loss reste bloquée à 0,089. Génération dégénérée. <b>Pire configuration.</b>",
+  figs:[[18,"Courbe de loss — MSE/époque"],[19,"Compression — train"],[20,"Compression — test"],[21,"Espace latent — train"],[22,"Espace latent — test"],[23,"Génération"]]},
+];
+
+AE.forEach(c=>{
+  const chunks=[]; for(let s=0;s<c.figs.length;s+=PER) chunks.push(c.figs.slice(s,s+PER));
+  const total=chunks.length;
+  chunks.forEach((ch,ci)=>{
+    const figs=ch.map(([idx,role])=>{
+      const ih=ch.length===1?'62vh':'30vh';
+      return `<figure class="figure" onclick="openLb('${aeSrc(idx)}')"><img loading="lazy" style="max-height:${ih};max-width:88vw" src="${aeSrc(idx)}" alt=""><figcaption>${role}</figcaption></figure>`;
+    }).join('');
+    const pill=total>1?`<span class="tag page">${ci+1}/${total}</span>`:'';
+    const tags=c.tags.map(x=>`<span class="tag ${x.c||''}">${x.t}</span>`).join('')+pill;
+    slides.push(`<section class="slide">
+      <div class="kicker">AutoEncoder · activation latente</div>
+      <h2>Activation : <span class="dim">${c.act}</span></h2>
+      <div class="params">${tags}</div>
+      <div class="gallery">${figs}</div>
+      <div class="caption">${c.finding}</div>
+    </section>`);
+  });
+});
+
+conclSlides("AutoEncoder simple — Conclusion",[
+  `L'expérience fait varier la seule <b>activation de la couche latente</b> (latent_dim = 2, QuickDraw cat/apple/car). Le résultat est net : <b>linéaire</b> laisse le latent libre et les trois classes se séparent en lobes, avec un manifold décodé continu et une génération cohérente. <b>ReLU</b> fonctionne aussi mais confine le code au quadrant positif (z ≥ 0). En revanche, les activations bornées <b>s'effondrent</b> : <b>tanh</b> sature aux bornes [−1, 1] et écrase le nuage dans un coin, tandis que <b>sigmoïde</b> collapse totalement — tous les codes valent (1, 1), toutes les reconstructions sont identiques et la loss reste bloquée à 0,089 (contre ≈ 0,062 pour linéaire / ReLU).`,
+  `En synthèse sur les trois tâches : pour la <b>compression</b>, linéaire conserve le plus d'information sans contraindre les valeurs latentes ; pour la <b>visualisation</b>, linéaire offre la représentation la plus libre là où les activations bornées produisent un espace écrasé ; pour la <b>génération</b>, linéaire reste préférable grâce à un latent plus flexible. <b>Conclusion : linéaire est le meilleur compromis</b> pour les trois tâches, tandis que les activations bornées (tanh, sigmoïde) limitent — voire détruisent — la richesse de la représentation latente.`,
+]).forEach(s=>slides.push(s));
+
+// ===== 08 · VAE (autoencodeur variationnel) =====
+// images réelles dans documentation/vae/ : image.png, image-1.png … image-23.png
+const vaeSrc=n=>"vae/"+(n===0?"image.png":"image-"+n+".png");
+
+slides.push(sectionSlide("08","VAE — autoencodeur variationnel",
+  "Le latent est régularisé par la KL divergence vers N(0, 1) : il devient lisse et générable. latent_dim = 2, KL = 0,001, sur QuickDraw. On fait varier l'activation de z_mean.",
+  "3 configs · sigmoïde · tanh · ReLU"));
+
+slides.push(`<section class="slide concl">
+  <div class="kicker">VAE · principe</div>
+  <h2>Un latent régularisé, donc générable</h2>
+  <ul>
+    <li>L'encodeur ne prédit plus un point mais une <b>distribution</b> (z_mean, z_log_var) ; on tire z = μ + σ·ε (<b>reparameterization trick</b>).</li>
+    <li>La loss ajoute la <b>KL divergence</b> vers <b>N(0, 1)</b> : <em>Loss = reconstruction + kl_weight · KL</em>. Elle tire les codes vers l'origine et les empêche de s'effondrer.</li>
+    <li><b>Récompense</b> : le latent suivant N(0, 1), on <b>génère</b> en échantillonnant z ~ N(0, I) directement, sans gaussienne empirique (contrairement à l'AE simple).</li>
+    <li>Ici la KL <b>sauve</b> les activations bornées : là où l'AE simple s'effondrait avec tanh/sigmoïde, le VAE garde un latent sain.</li>
+  </ul>
+</section>`);
+
+const VAE=[
+ {act:"z_mean sigmoïde",
+  tags:[{t:"z_mean sigmoïde",c:"page"},{t:"MSE 0,064",c:"mse"}],
+  finding:"z_mean borné à [0, 1] par la sigmoïde. Grâce à la KL, le latent reste <b>sain</b> : les trois classes se séparent (apple à gauche, cat au centre, car à droite) et remplissent le carré. Génération z ~ N(0, I) <b>cohérente</b>.",
+  figs:[[0,"Métadonnées"],[1,"Courbe MSE / époque"],[2,"Compression — test"],[3,"Espace latent — train"],[4,"Espace latent — test"],[5,"Loss VAE — reconstruction + KL"],[6,"Grille N(0,1) décodée"],[7,"Génération — z ~ N(0, I)"]]},
+ {act:"z_mean tanh",
+  tags:[{t:"z_mean tanh",c:"page"},{t:"meilleur",c:"k"},{t:"MSE 0,063",c:"mse"}],
+  finding:"z_mean borné à [−1, 1]. <b>Meilleure reconstruction</b> (MSE 0,063) : classes bien séparées, manifold continu, génération variée. La KL empêche l'effondrement qu'on observait sur l'AE simple avec tanh.",
+  figs:[[8,"Métadonnées"],[9,"Courbe MSE / époque"],[10,"Compression — test"],[11,"Espace latent — train"],[12,"Espace latent — test"],[13,"Loss VAE — reconstruction + KL"],[14,"Grille N(0,1) décodée"],[15,"Génération — z ~ N(0, I)"]]},
+ {act:"z_mean ReLU",
+  tags:[{t:"z_mean ReLU",c:"page"},{t:"latent appauvri",c:"mse"},{t:"MSE 0,080",c:"mse"}],
+  finding:"z_mean = ReLU (z ≥ 0). Le latent <b>s'appauvrit</b> : z₁ ≈ 0 pour presque tout le monde, seule z₂ reste active — l'espace se réduit à ~1 dimension. MSE la plus haute (0,080) ; la génération reste correcte mais le latent est bridé.",
+  figs:[[16,"Métadonnées"],[17,"Courbe MSE / époque"],[18,"Compression — test"],[19,"Espace latent — train"],[20,"Espace latent — test"],[21,"Loss VAE — reconstruction + KL"],[22,"Grille N(0,1) décodée"],[23,"Génération — z ~ N(0, I)"]]},
+];
+
+VAE.forEach(c=>{
+  const chunks=[]; for(let s=0;s<c.figs.length;s+=PER) chunks.push(c.figs.slice(s,s+PER));
+  const total=chunks.length;
+  chunks.forEach((ch,ci)=>{
+    const figs=ch.map(([idx,role])=>{
+      const ih=ch.length===1?'62vh':'30vh';
+      return `<figure class="figure" onclick="openLb('${vaeSrc(idx)}')"><img loading="lazy" style="max-height:${ih};max-width:88vw" src="${vaeSrc(idx)}" alt=""><figcaption>${role}</figcaption></figure>`;
+    }).join('');
+    const pill=total>1?`<span class="tag page">${ci+1}/${total}</span>`:'';
+    const tags=c.tags.map(x=>`<span class="tag ${x.c||''}">${x.t}</span>`).join('')+pill;
+    slides.push(`<section class="slide">
+      <div class="kicker">VAE · activation de z_mean</div>
+      <h2>Activation latente : <span class="dim">${c.act}</span></h2>
+      <div class="params">${tags}</div>
+      <div class="gallery">${figs}</div>
+      <div class="caption">${c.finding}</div>
+    </section>`);
+  });
+});
+
+conclSlides("VAE — Conclusion",[
+  `On fait varier la seule <b>activation de z_mean</b> (sigmoïde, tanh, ReLU) sur un VAE à latent_dim = 2, KL = 0,001, QuickDraw (cat/apple/car). Le contraste avec l'AutoEncoder simple est frappant : là où tanh et sigmoïde <b>faisaient s'effondrer</b> l'AE, la <b>KL divergence</b> du VAE garde le latent sain. Les deux donnent des classes bien séparées et une MSE basse — <b>tanh</b> est le meilleur (0,063), la <b>sigmoïde</b> juste derrière (0,064). Seul <b>ReLU</b>, borné à z ≥ 0, appauvrit le latent (z₁ ≈ 0, une seule dimension utile) et remonte la MSE à 0,080.`,
+  `La vraie récompense du VAE est la <b>génération</b> : parce que la KL tire les codes vers <b>N(0, 1)</b>, on échantillonne z ~ N(0, I) et on décode directement des formes plausibles (grille N(0,1) décodée et panneaux de génération), sans passer par la gaussienne empirique qu'exigeait l'AE simple. Les courbes de loss montrent l'arbitrage : la reconstruction baisse tandis que la KL monte puis se stabilise. <b>Bilan : le VAE offre un espace latent lisse et générable</b>, et une activation latente bornée non triviale (tanh) y devient le meilleur choix.`,
+]).forEach(s=>slides.push(s));
+
+// render + nav
+const deck=document.getElementById('deck');
+deck.innerHTML=slides.join('');
+const els=[...document.querySelectorAll('.slide')];
+let i=0;
+const counter=document.getElementById('counter'), progress=document.getElementById('progress');
+const lb=document.getElementById('lb'), lbimg=document.getElementById('lbimg');
+function show(n){i=Math.max(0,Math.min(els.length-1,n));
+  els.forEach((s,k)=>s.classList.toggle('active',k===i));
+  counter.textContent=(i+1)+" / "+els.length;
+  progress.style.width=(i/(els.length-1)*100)+"%";}
+function go(d){ if(lb.classList.contains('open'))return; show(i+d); }
+function openLb(s){ lbimg.src=s; lb.classList.add('open'); }
+function closeLb(){ lb.classList.remove('open'); lbimg.src=""; }
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeLb(); return; }
+  if(lb.classList.contains('open'))return;
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ go(1); e.preventDefault(); }
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){ go(-1); e.preventDefault(); }
+  else if(e.key==='Home'){ show(0); } else if(e.key==='End'){ show(els.length-1); }
+  else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+});
+show(0);
+</script>
+</body>
+</html>

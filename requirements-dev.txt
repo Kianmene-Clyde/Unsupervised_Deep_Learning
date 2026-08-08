@@ -1,0 +1,3 @@
+# Outils de validation du dépôt.
+-r requirements.txt
+pytest>=8,<10

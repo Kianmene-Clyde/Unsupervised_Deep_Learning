@@ -1,0 +1,9 @@
+# Dépendances optionnelles pour les notebooks et l'exploration vectorielle Quick Draw.
+-r requirements.txt
+pandas>=2.1,<4
+seaborn>=0.13,<1
+quickdraw>=1.0,<2
+jupyter>=1.0,<2
+notebook>=7.0,<8
+ipykernel>=6.29,<8
+tqdm>=4.66,<5

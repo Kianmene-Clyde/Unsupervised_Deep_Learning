@@ -1,0 +1,37 @@
+{
+  "_comment": "Config d'exemple pour run_experiments.py. Tout est optionnel. Ce JSON surcharge la CONFIG DE BASE (baseline) de chaque algo et fournit une GRILLE (grid, utilisee avec --mode grid ou both). Les SWEEPS eux ne se choisissent PAS ici : ils viennent de l'intensite full/light passee via --datasets (ex. 'quickdraw:full,mnist:light').",
+
+  "vae": {
+    "baseline": {
+      "architecture": "dense",
+      "latent_dim": 10,
+      "kl_weight": 1e-3,
+      "hidden_dims": "128-32",
+      "conv_filters": "32-64",
+      "hidden_activation": "relu",
+      "latent_activation": "linear",
+      "output_activation": "sigmoid",
+      "optimizer": "adam",
+      "learning_rate": 1e-3,
+      "batch_size": 256,
+      "epochs": 12,
+      "seed": 42
+    },
+    "grid": {
+      "_comment": "Produit cartesien, utilise avec --mode grid ou both.",
+      "latent_dim": [2, 10, 20],
+      "kl_weight": [0.0, 1e-3, 1.0]
+    }
+  },
+
+  "pca": {
+    "baseline": {
+      "n_components": 50,
+      "center": "feature"
+    },
+    "grid": {
+      "n_components": [10, 50, 100],
+      "center": ["feature", "global"]
+    }
+  }
+}

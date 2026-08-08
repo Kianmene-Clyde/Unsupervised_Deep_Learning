@@ -1,0 +1,109 @@
+# ------------------------------------------------------------------
+# Datasets — never commit the raw data (large & downloadable)
+# Keep the folder structure via data/.gitkeep, ignore everything else
+# ------------------------------------------------------------------
+/data/*
+!/data/.gitkeep
+# Downloaded Quick, Draw! .bin cache (also matched by /data/* above)
+/data/binary/
+*.zip
+*.npy
+*.npz
+*.ndjson
+*.bin
+
+# Windows/WSL "downloaded from internet" markers
+*:Zone.Identifier
+*Zone.Identifier
+
+# ------------------------------------------------------------------
+# Model artifacts, checkpoints and experiment logs
+# ------------------------------------------------------------------
+# *.h5
+# *.keras
+# *.hdf5
+# *.ckpt
+# *.pb
+# models/
+# checkpoints/
+# logs/
+# runs/
+# wandb/
+# mlruns/
+
+# ------------------------------------------------------------------
+# Python
+# ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+myenv/
+env/
+ENV/
+
+# ------------------------------------------------------------------
+# Jupyter
+# ------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ------------------------------------------------------------------
+# Tooling / editors / OS
+# ------------------------------------------------------------------
+.env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+Scripts/
+Lib/
+etc/
+pyvenv.cfg
+share/
+
+# ------------------------------------------------------------------
+# Testing / coverage
+# ------------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ------------------------------------------------------------------
+# Temporary files
+# ------------------------------------------------------------------
+tmp/
+*.tmp
+*.log
+
+# ------------------------------------------------------------------
+# ML / Deep Learning generated artifacts
+# ------------------------------------------------------------------
+*.h5
+*.keras
+*.hdf5
+*.ckpt
+*.pb
+
+models/
+checkpoints/
+logs/
+runs/
+wandb/
+mlruns/
+
+# ------------------------------------------------------------------
+# Misc Python tooling
+# ------------------------------------------------------------------
+.mypy_cache/
+.ruff_cache/
+.pyright/
