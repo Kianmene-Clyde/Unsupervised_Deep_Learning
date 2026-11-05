@@ -20,6 +20,7 @@ import numpy as np
 import tensorflow as tf
 
 from utils.array_cache import ArrayFingerprints
+from utils.neural_config import validate_architecture, validate_training_config
 
 IMG_SIZE = 28
 IMAGE_DIM = IMG_SIZE * IMG_SIZE
@@ -139,6 +140,7 @@ def build_models(cfg):
 
     L'encodeur a deux sorties : encoder(x) -> [z_mean, z_log_var].
     """
+    validate_architecture(cfg)
     if cfg["architecture"] == "conv":
         return _build_conv(cfg)
     return _build_dense(cfg)
@@ -191,6 +193,7 @@ def train_vae(X, cfg, progress=None):
     sortie — donc la MSE par pixel, dense comme conv (les deux moyennent sur tous
     les éléments), la même unité que l'autoencodeur simple.
     """
+    validate_training_config(cfg, variational=True)
     seed = int(cfg["seed"])
     tf.keras.utils.set_random_seed(seed)
 
@@ -225,6 +228,9 @@ def train_vae(X, cfg, progress=None):
             )
             kl = tf.reduce_mean(kl)
             total = recon + kl_weight * kl
+            tf.debugging.assert_all_finite(
+                total, "Loss VAE non finie : réduire le pas ou vérifier les données."
+            )
 
         variables = encoder.trainable_variables + decoder.trainable_variables
         grads = tape.gradient(total, variables)
@@ -238,9 +244,12 @@ def train_vae(X, cfg, progress=None):
         kl_m = tf.keras.metrics.Mean()
         for x_batch in dataset:
             total, recon, kl = train_step(x_batch)
-            total_m.update_state(total)
-            recon_m.update_state(recon)
-            kl_m.update_state(kl)
+            # Epoch statistics are sample means, not means of batch means.
+            # The final partial batch must not count as a full batch.
+            count = tf.cast(tf.shape(x_batch)[0], tf.float32)
+            total_m.update_state(total, sample_weight=count)
+            recon_m.update_state(recon, sample_weight=count)
+            kl_m.update_state(kl, sample_weight=count)
         history["total_loss"].append(float(total_m.result().numpy()))
         history["reconstruction_loss"].append(float(recon_m.result().numpy()))
         history["kl_loss"].append(float(kl_m.result().numpy()))

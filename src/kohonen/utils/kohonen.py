@@ -39,6 +39,8 @@ une version atténuée, les neurones lointains rien du tout.
 
 import numpy as np
 
+from utils.neural_config import positive_integer
+
 
 def grid_coords(rows, cols):
     """Positions (k, 2) des neurones — leur espace topologique. Colonnes : (x, y).
@@ -54,6 +56,8 @@ def grid_coords(rows, cols):
 
     Le reste du code ne lit que des distances euclidiennes entre ces coordonnées.
     """
+    rows = positive_integer(rows, "rows")
+    cols = positive_integer(cols, "cols")
     r, c = np.meshgrid(np.arange(rows), np.arange(cols), indexing="ij")
     r = r.ravel().astype(np.float32)
     c = c.ravel().astype(np.float32)
@@ -69,8 +73,8 @@ def neighborhood_matrix(coords, gamma):
     chacune des dizaines de milliers d'itérations. H[:, k] donne alors
     directement la colonne de coefficients à appliquer quand k gagne.
     """
-    if gamma <= 0:
-        raise ValueError("gamma doit être strictement positif.")
+    if not np.isfinite(gamma) or gamma <= 0:
+        raise ValueError("gamma doit être fini et strictement positif.")
 
     diff = coords[:, None, :] - coords[None, :, :]        # (k, k, 2)
     squared = np.sum(diff ** 2, axis=2)                   # ||Ci - Ck||²
@@ -172,9 +176,16 @@ def fit_kohonen(X, rows, cols, n_epochs, alpha, gamma, seed, verbose,
     « industriels » les font décroître au fil du temps (voisinage large puis
     resserré) ; ce n'est pas implémenté ici.
     """
+    rows = positive_integer(rows, "rows")
+    cols = positive_integer(cols, "cols")
+    n_epochs = positive_integer(n_epochs, "n_epochs")
+    if not np.isfinite(alpha) or not 0 < alpha <= 1:
+        raise ValueError("alpha doit être fini et compris dans ]0, 1].")
     X = np.asarray(X, dtype=np.float32)
+    if X.ndim != 2 or min(X.shape) == 0 or not np.isfinite(X).all():
+        raise ValueError("X doit être une matrice 2D finie et non vide.")
     n = len(X)
-    k = int(rows) * int(cols)
+    k = rows * cols
     if k > n:
         raise ValueError(
             f"Grille {rows}x{cols} = {k} neurones pour {n} exemples : "

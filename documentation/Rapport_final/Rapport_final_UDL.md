@@ -1,3 +1,5 @@
+> **Document historique — état initial du projet.** Les tableaux, figures et conclusions ci-dessous sont conservés pour traçabilité. Ils ne sont pas des résultats recalculés avec le protocole corrigé du 5 novembre 2026. Consulter [le bilan de validation actuel](../VALIDATION_ET_METHODOLOGIE.md) et le README pour les nouvelles définitions des métriques, la séparation validation/test et les commandes exécutables. Le support PowerPoint de ce dossier est également historique.
+
 # Rapport final — Unsupervised Deep Learning Toolbox
 
 **Projet 2026 · 5A-IABD · M2-t3 Unsupervised Deep Learning** — encadrant : Nicolas Vidal.

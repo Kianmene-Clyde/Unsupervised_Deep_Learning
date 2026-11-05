@@ -94,9 +94,19 @@ class Param:
                 )
             return
 
+        if self.minimum is not None and not math.isfinite(self.minimum):
+            raise ValueError(f"{self.name} : minimum doit être fini.")
+        if self.maximum is not None and not math.isfinite(self.maximum):
+            raise ValueError(f"{self.name} : maximum doit être fini.")
+        if (self.minimum is not None and self.maximum is not None
+                and self.minimum > self.maximum):
+            raise ValueError(f"{self.name} : minimum dépasse maximum.")
+
         step = self.step if self.step is not None else (1 if self.kind == "int" else 0.01)
-        if step <= 0:
+        if not math.isfinite(step) or step <= 0:
             raise ValueError(f"{self.name} : step doit être strictement positif.")
+
+        self.validate(self.default)
 
         base = self.minimum if self.minimum is not None else 0
         offsets = (self.default - base) / step
@@ -108,6 +118,28 @@ class Param:
             )
         if self.maximum is not None and self.default > self.maximum:
             raise ValueError(f"{self.name} : défaut {self.default} > maximum {self.maximum}.")
+
+    def validate(self, value):
+        """Validate browser/API input before a core silently casts it to int."""
+        if self.kind == "choice":
+            if value not in [v for _, v in (self.choices or [])]:
+                raise ValueError(f"{self.label} : choix invalide {value!r}.")
+            return value
+        if isinstance(value, (str, bool)):
+            raise ValueError(f"{self.label} : une valeur numérique est attendue.")
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"{self.label} : une valeur numérique est attendue.") from exc
+        if not math.isfinite(numeric):
+            raise ValueError(f"{self.label} : la valeur doit être finie.")
+        if self.kind == "int" and not numeric.is_integer():
+            raise ValueError(f"{self.label} : un entier est attendu.")
+        if self.minimum is not None and numeric < self.minimum:
+            raise ValueError(f"{self.label} : minimum {self.minimum}.")
+        if self.maximum is not None and numeric > self.maximum:
+            raise ValueError(f"{self.label} : maximum {self.maximum}.")
+        return int(numeric) if self.kind == "int" else numeric
 
 
 class Algo:
@@ -168,6 +200,10 @@ class Algo:
         raise NotImplementedError
 
     # --------------------------------------------------------------- Registre
+
+    def model_path(self, name):
+        """Absolute registry path, used for metadata-only reads and cache invalidation."""
+        raise NotImplementedError
 
     def list_models(self):
         raise NotImplementedError

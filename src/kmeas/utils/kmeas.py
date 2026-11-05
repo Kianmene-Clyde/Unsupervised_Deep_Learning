@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import math
+
 import tensorflow as tf
+
+from utils.neural_config import positive_integer
 
 
 def initialize_centroids(X, k, seed):
@@ -68,16 +72,18 @@ def _validated_training_data(X, k, max_iter, tolerance):
     if X.shape.rank != 2:
         raise ValueError(f"X doit être une matrice 2D, forme reçue : {X.shape}.")
     n_samples = int(tf.shape(X)[0])
-    if n_samples == 0:
-        raise ValueError("X doit contenir au moins une observation.")
+    if n_samples == 0 or int(tf.shape(X)[1]) == 0:
+        raise ValueError("X doit contenir au moins une observation et une caractéristique.")
     if not bool(tf.reduce_all(tf.math.is_finite(X))):
         raise ValueError("X contient des valeurs NaN ou infinies.")
+    positive_integer(k, "k")
+    positive_integer(max_iter, "max_iter")
     if not 1 <= int(k) <= n_samples:
         raise ValueError(f"k doit être compris entre 1 et {n_samples}, reçu : {k}.")
     if int(max_iter) < 1:
         raise ValueError("max_iter doit être supérieur ou égal à 1.")
-    if float(tolerance) < 0:
-        raise ValueError("tolerance doit être positive ou nulle.")
+    if not math.isfinite(float(tolerance)) or float(tolerance) < 0:
+        raise ValueError("tolerance doit être finie et positive ou nulle.")
     return X
 
 

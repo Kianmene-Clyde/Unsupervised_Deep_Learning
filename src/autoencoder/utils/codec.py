@@ -24,7 +24,12 @@ class AECode:
     __slots__ = ("values",)
 
     def __init__(self, values):
-        self.values = np.asarray(values, dtype=np.float32)
+        # Own the buffer: caller mutation must never change a hashable code.
+        self.values = np.array(values, dtype=np.float32, copy=True)
+        if self.values.ndim != 1 or self.values.size == 0 or not np.isfinite(self.values).all():
+            raise ValueError("Le code latent doit être un vecteur fini et non vide.")
+        # +0 and -0 compare equal, so they must also produce the same hash.
+        self.values[self.values == 0] = 0.0
         self.values.setflags(write=False)  # un code est une valeur, pas un buffer
 
     def __eq__(self, other):

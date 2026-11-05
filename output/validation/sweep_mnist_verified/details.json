@@ -1,0 +1,103 @@
+[
+  {
+    "algo": "pca",
+    "dataset": "mnist",
+    "params": {
+      "n_components": 5,
+      "center": "feature"
+    },
+    "inertia_history": [
+      9677.064714282618,
+      8872.90320818287,
+      8124.607702142161,
+      7494.070961431701,
+      6787.4397784770845
+    ]
+  },
+  {
+    "algo": "pca",
+    "dataset": "mnist",
+    "params": {
+      "n_components": 20,
+      "center": "feature"
+    },
+    "inertia_history": [
+      9677.064714282618,
+      8872.90320818287,
+      8124.607702142161,
+      7494.070961431701,
+      6911.119864622626,
+      6465.073862727198,
+      6060.426264315316,
+      5693.111618121936,
+      5381.753581137934,
+      5107.062434149338,
+      4858.943065548296,
+      4639.363299919647,
+      4428.169860005334,
+      4235.495059383659,
+      4047.1451947952305,
+      3882.373520890646,
+      3720.969217133917,
+      3568.209841950573,
+      3422.41611321397,
+      3014.4119836897976
+    ]
+  },
+  {
+    "algo": "vae",
+    "dataset": "mnist",
+    "params": {
+      "architecture": "dense",
+      "latent_dim": 2,
+      "kl_weight": 0.001,
+      "hidden_dims": "128-32",
+      "conv_filters": "32-64",
+      "hidden_activation": "relu",
+      "latent_activation": "linear",
+      "output_activation": "sigmoid",
+      "optimizer": "adam",
+      "learning_rate": 0.001,
+      "batch_size": 256,
+      "epochs": 1,
+      "seed": 42
+    },
+    "reconstruction_mse_history": [
+      0.23169906437397003
+    ],
+    "kl_history": [
+      0.26082003116607666
+    ],
+    "total_history": [
+      0.23195987939834595
+    ]
+  },
+  {
+    "algo": "vae",
+    "dataset": "mnist",
+    "params": {
+      "architecture": "dense",
+      "latent_dim": 10,
+      "kl_weight": 0.0,
+      "hidden_dims": "128-32",
+      "conv_filters": "32-64",
+      "hidden_activation": "relu",
+      "latent_activation": "linear",
+      "output_activation": "sigmoid",
+      "optimizer": "adam",
+      "learning_rate": 0.001,
+      "batch_size": 256,
+      "epochs": 1,
+      "seed": 42
+    },
+    "reconstruction_mse_history": [
+      0.23279327154159546
+    ],
+    "kl_history": [
+      1.0274423360824585
+    ],
+    "total_history": [
+      0.23279327154159546
+    ]
+  }
+]

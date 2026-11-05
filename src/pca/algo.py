@@ -49,6 +49,7 @@ from utils.pca.generation import (
 
 from .utils import codec
 from .utils.registry import delete_model, list_models, load_model, save_model
+from .utils.registry import model_path as registry_model_path
 from .utils.visualization import (
     captured,
     plot_dominant_distribution,
@@ -203,6 +204,9 @@ class PCAAlgo(Algo):
         return codec.decode(code, weights)
 
     # --------------------------------------------------------------- Registre
+
+    def model_path(self, name):
+        return registry_model_path(name)
 
     def list_models(self):
         return list_models()
@@ -417,12 +421,12 @@ class PCAAlgo(Algo):
         if len(class_names) >= 2 and counts.min() >= 2:
             per_class = fit_latent_gaussian(pca, X, y=y)
             figures.append((
-                "Génération — tirages par classe",
+                "Génération conditionnelle — labels utilisés pour ajuster les gaussiennes",
                 captured(plot_generated_grid, pca, per_class, class_names,
-                         suptitle="Images générées (une gaussienne latente par classe)"),
+                         suptitle="Démo conditionnelle : une gaussienne ajustée avec les labels de chaque classe"),
             ))
             figures.append((
-                "Génération — moyenne réelle vs moyenne latente",
+                "Génération conditionnelle — moyenne réelle vs moyenne latente",
                 captured(plot_real_vs_generated, pca, X, y, per_class, class_names),
             ))
             figures.append((

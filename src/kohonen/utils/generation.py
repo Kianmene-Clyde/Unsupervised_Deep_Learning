@@ -34,9 +34,12 @@ def activation_weights(labels, k):
 
 
 def _neighbors(code, rows, cols):
-    """Les cases adjacentes (4-connexité rectangulaire) d'un neurone."""
+    """Six neighbors of the same odd-row hexagonal grid used for training."""
     r, c = divmod(int(code), cols)
-    around = [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]
+    offset = 1 if r % 2 else -1
+    around = [(r, c - 1), (r, c + 1),
+              (r - 1, c), (r - 1, c + offset),
+              (r + 1, c), (r + 1, c + offset)]
     return [rr * cols + cc for rr, cc in around if 0 <= rr < rows and 0 <= cc < cols]
 
 
@@ -56,7 +59,7 @@ def sample_synthetic(weights, rows, cols, act_weights, n_images, seed=42,
     images = np.empty((n_images, IMAGE_DIM), dtype=np.float32)
     for i, c in enumerate(starts):
         vs = _neighbors(c, rows, cols)
-        v = vs[rng.integers(len(vs))]
+        v = vs[rng.integers(len(vs))] if vs else c
         t = rng.uniform(0.0, 0.5)
         images[i] = (1.0 - t) * W[c] + t * W[v]
     images += noise * rng.standard_normal(images.shape).astype(np.float32)

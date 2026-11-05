@@ -16,6 +16,7 @@ from .utils.generation import activation_weights, sample_synthetic
 from .utils.kohonen import assign_clusters, fit_kohonen
 from .utils.metrics import mse_from_inertia
 from .utils.registry import delete_model, list_models, load_model, save_model
+from .utils.registry import model_path as registry_model_path
 from .utils.visualization import (
     plot_class_distribution,
     plot_inertia,
@@ -132,6 +133,9 @@ class Kohonen(Algo):
         return np.asarray(decode(code, weights), dtype=np.float32)
 
     # --------------------------------------------------------------- Registre
+
+    def model_path(self, name):
+        return registry_model_path(name)
 
     def list_models(self):
         return list_models()

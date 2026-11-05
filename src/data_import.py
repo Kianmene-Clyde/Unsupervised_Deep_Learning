@@ -34,6 +34,7 @@ de celles de Google, pour un coût de calcul inutile : on télécharge les .npy.
 import urllib.parse
 import urllib.request
 import re
+import tempfile
 from pathlib import Path
 from typing import NamedTuple
 
@@ -85,6 +86,23 @@ DATASETS = {
 # ------------------------------------------------------- Quick, Draw! bitmaps
 
 
+def _validate_bitmap(path: Path) -> None:
+    """Validate the official bitmap contract, including truncated cache files."""
+    try:
+        data = np.load(path, mmap_mode="r", allow_pickle=False)
+    except (OSError, ValueError, EOFError) as exc:
+        raise ValueError(f"Cache Quick Draw invalide : {path.name}. Retéléchargez ce fichier.") from exc
+    try:
+        if data.ndim != 2 or data.shape[1] != IMAGE_DIM or len(data) < 2 or data.dtype != np.uint8:
+            raise ValueError(
+                f"Fichier Quick Draw invalide {path.name} : attendu uint8 (n, {IMAGE_DIM}), n >= 2."
+            )
+    finally:
+        # Windows cannot atomically rename an open memory-mapped file.
+        if getattr(data, "_mmap", None) is not None:
+            data._mmap.close()
+
+
 def download_bitmap(name: str, progress=None) -> Path:
     """Télécharge (une fois) le .npy 28x28 d'une classe et renvoie son chemin.
 
@@ -100,6 +118,7 @@ def download_bitmap(name: str, progress=None) -> Path:
     if path.parent != base:
         raise ValueError("Le fichier Quick Draw doit rester dans le cache prévu.")
     if path.exists():
+        _validate_bitmap(path)
         return path
 
     # Les noms à plusieurs mots ("power outlet") doivent être encodés dans l'URL.
@@ -112,10 +131,54 @@ def download_bitmap(name: str, progress=None) -> Path:
 
     # On écrit dans un .part renommé à la fin : une coupure réseau laisserait
     # sinon un .npy tronqué en cache, que les runs suivants croiraient valide.
-    tmp = path.with_suffix(".npy.part")
-    urllib.request.urlretrieve(url, tmp, reporthook=hook)
-    tmp.replace(path)
+    with tempfile.NamedTemporaryFile(dir=base, prefix=f"{name}_", suffix=".npy.part", delete=False) as handle:
+        tmp = Path(handle.name)
+    try:
+        urllib.request.urlretrieve(url, tmp, reporthook=hook)
+        _validate_bitmap(tmp)
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
     return path
+
+
+def stratified_split_indices(y, holdout_fraction=0.2, seed=42):
+    """Disjoint, repeatable stratified indices, with each class on both sides.
+
+    Labels are used only to stratify the split, never as model training targets.
+    A class with fewer than two examples cannot support this contract.
+    """
+    labels = np.asarray(y)
+    if labels.ndim != 1 or labels.size < 2:
+        raise ValueError("y doit être un vecteur contenant au moins deux exemples.")
+    if not np.issubdtype(labels.dtype, np.integer):
+        raise ValueError("y doit contenir des labels entiers.")
+    if not np.isfinite(holdout_fraction) or not 0 < holdout_fraction < 1:
+        raise ValueError("holdout_fraction doit être strictement compris entre 0 et 1.")
+    rng = np.random.default_rng(seed)
+    train, holdout = [], []
+    for label in np.unique(labels):
+        indices = np.flatnonzero(labels == label)
+        if len(indices) < 2:
+            raise ValueError(f"La classe {label} doit contenir au moins deux exemples pour le split.")
+        rng.shuffle(indices)
+        count = min(max(int(round(len(indices) * holdout_fraction)), 1), len(indices) - 1)
+        holdout.extend(indices[:count])
+        train.extend(indices[count:])
+    train = np.asarray(train, dtype=np.int64)
+    holdout = np.asarray(holdout, dtype=np.int64)
+    rng.shuffle(train)
+    rng.shuffle(holdout)
+    return train, holdout
+
+
+def split_train_validation(X, y, validation_fraction=0.2, seed=42):
+    """Split only the training partition; the official test set is untouched."""
+    X, y = np.asarray(X), np.asarray(y)
+    if X.ndim != 2 or len(X) != len(y):
+        raise ValueError("X doit être une matrice 2D et avoir la même longueur que y.")
+    train, validation = stratified_split_indices(y, validation_fraction, seed)
+    return X[train], y[train], X[validation], y[validation]
 
 
 def load_quickdraw(
@@ -178,16 +241,12 @@ def load_quickdraw(
 
     # Sans ce mélange, X serait trié par classe et un découpage par tranche
     # mettrait une classe entière dans le test.
-    perm = rng.permutation(len(X))
-    X, y = X[perm], y[perm]
-
-    n_test = int(round(len(X) * test_ratio))
-    n_test = min(max(n_test, 1), len(X) - 1)
+    train, test = stratified_split_indices(y, test_ratio, seed)
     return Dataset(
-        X_train=X[n_test:],
-        y_train=y[n_test:],
-        X_test=X[:n_test],
-        y_test=y[:n_test],
+        X_train=X[train],
+        y_train=y[train],
+        X_test=X[test],
+        y_test=y[test],
         class_names=classes,
         name=name,
     )

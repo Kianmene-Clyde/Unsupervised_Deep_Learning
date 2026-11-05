@@ -1,0 +1,67 @@
+{
+  "baseline_archive": "D:\\Unsupervised_Deep_Learning.zip",
+  "baseline_source_sha256": {
+    "src/kohonen/utils/generation.py": "3de786bac55fe731cb9f825db19f47cb3676fc03c98c4b2473309707c87b46ac",
+    "src/utils/pca/generation.py": "bf276741f9e3b1772b82a2c025c1eb59586ae7f5db99561039923bfe106e8a05",
+    "src/vae/utils/model.py": "a5db7310f85c23034ef8e87007577207748611a8cd291fbcf336b4f551a642d1"
+  },
+  "results": [
+    {
+      "check": "SOM single-neuron generation",
+      "before": "ValueError: high <= 0",
+      "after": "passed",
+      "expected": "3 finite images",
+      "after_shape": [
+        3,
+        784
+      ]
+    },
+    {
+      "check": "SOM interior hexagon neighbor count",
+      "before": 4,
+      "after": 6,
+      "expected": 6
+    },
+    {
+      "check": "Singleton PCA class covariance",
+      "before": [
+        [
+          "nan",
+          "nan"
+        ],
+        [
+          "nan",
+          "nan"
+        ]
+      ],
+      "after": [
+        [
+          1e-06,
+          0.0
+        ],
+        [
+          0.0,
+          1e-06
+        ]
+      ],
+      "expected": [
+        [
+          1e-06,
+          0.0
+        ],
+        [
+          0.0,
+          1e-06
+        ]
+      ]
+    },
+    {
+      "check": "VAE sample-weighted epoch reconstruction loss",
+      "before": 0.03125,
+      "after": 0.05882352963089943,
+      "expected": 0.058823529411764705,
+      "fixture": "fixed zero decoder, 17 observations, one all-one image, batch size16"
+    }
+  ],
+  "purpose": "controlled regression fixtures; not dataset performance"
+}

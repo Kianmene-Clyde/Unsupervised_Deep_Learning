@@ -1,0 +1,65 @@
+{
+  "datasets": [
+    [
+      "mnist",
+      "full"
+    ]
+  ],
+  "mode": "curated",
+  "n_train": 200,
+  "n_test": 64,
+  "data_seed": 42,
+  "algos": [
+    "pca",
+    "vae"
+  ],
+  "selection_split": "validation",
+  "validation_fraction": 0.2,
+  "final_test_requested": true,
+  "partitions": {
+    "mnist": {
+      "train": {
+        "n": 200,
+        "sha256": "96dc6e2936b6f013e8e95309d2373233e1068badf0c3dbc848aae090db648589"
+      },
+      "validation": {
+        "n": 64,
+        "sha256": "baf85d3c208c80985375a132aa79b63bc0ddb5cb8bbd010d86b67dc2ab71e7f1"
+      },
+      "test": {
+        "n": 64,
+        "sha256": "bb553e4ee38dc5c9ccef9c4a887ff1cad77fc563778e43895f9a43823709f7a6"
+      }
+    }
+  },
+  "label_usage": "stratification uniquement ; aucun label passé aux modèles",
+  "python": "3.12.11",
+  "versions": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "matplotlib": "3.11.2"
+  },
+  "vae_baseline": {
+    "architecture": "dense",
+    "latent_dim": 10,
+    "kl_weight": 0.001,
+    "hidden_dims": "128-32",
+    "conv_filters": "32-64",
+    "hidden_activation": "relu",
+    "latent_activation": "linear",
+    "output_activation": "sigmoid",
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "batch_size": 256,
+    "epochs": 1,
+    "seed": 42
+  },
+  "pca_baseline": {
+    "n_components": 50,
+    "center": "feature"
+  },
+  "saved_models": false,
+  "n_models_saved": 0,
+  "total_seconds": 7.7,
+  "timestamp": "20261105_120422_903050"
+}

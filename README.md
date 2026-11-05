@@ -1,147 +1,119 @@
-# Unsupervised Deep Learning — MNIST & Quick, Draw!
+# Unsupervised Deep Learning — MNIST et Quick, Draw!
 
-*Unsupervised Deep Learning*. Une boîte à outils de
-**six algorithmes d'apprentissage non supervisé**, chacun discuté sur
-**trois tâches**, sur les datasets **MNIST** et **Quick, Draw!**:
+Boîte à outils scientifique comparant **six méthodes**, de K-means au GAN, sur la projection, la reconstruction/compression et la génération d’images 28 × 28. Les implémentations pédagogiques maison sont conservées ; l’application Gradio et les expériences utilisent les mêmes composants.
 
-| Algo | Cœur | Tâche 1 · Projection | Tâche 2 · Compression | Tâche 3 · Génération |
-|---|---|---|---|---|
-| K-means | TensorFlow (Lloyd écrit main) | distributions par cluster | ✅ codec 1 entier | mélange de gaussiennes sur les clusters |
-| Kohonen (SOM) | NumPy pur | carte topologique + U-matrix | ✅ codec 1 entier | interpolation entre neurones voisins |
-| PCA | NumPy pur | ✅ nuages PC1×PC2×PC3 | ✅ codec k flottants | gaussienne latente par classe |
-| AutoEncoder | Keras (archi + entraînement maison) | ✅ nuages z₁×z₂ + manifold | ✅ codec z flottants | gaussienne empirique du latent |
-| VAE | Keras + boucle GradientTape maison | ✅ latent régularisé N(0,1) | ✅ codec z_mean | ✅ z ~ N(0, I) direct |
-| **GAN** | **NumPy pur (forward/backward/Adam à la main)** | z inversés (banque) | ❌ volontairement (pas d'encodeur) | ✅ z ~ N(0, I) — sa raison d'être |
+| Méthode | Implémentation | Reconstruction | Génération |
+|---|---|---|---|
+| K-means | Lloyd écrit à la main avec TensorFlow | Index de centroïde | Mélange autour des clusters appris |
+| SOM / Kohonen | NumPy, grille hexagonale | Index de prototype | Interpolation entre voisins hexagonaux |
+| PCA | NumPy, décomposition spectrale | Coefficients linéaires | Gaussienne latente globale dans le comparatif |
+| AutoEncoder | Architecture et entraînement Keras | Code latent | Gaussienne empirique du latent |
+| VAE | Keras, reparamétrisation et GradientTape | Moyenne latente | Échantillonnage du prior |
+| GAN | NumPy : forward, gradients et Adam maison | Inversion approximative diagnostique | Générateur appris |
 
-Le tableau comparatif chiffré (MSE/PSNR/SSIM, pureté, silhouette, FID
-simplifiée) est produit par `src/experiments/compare_all.py` et analysé dans
-`documentation/Rapport_final/`.
+Le GAN ne possède pas d’encodeur natif. Les démonstrations PCA par classe utilisent les labels et sont explicitement conditionnelles ; elles sont distinctes de la génération non supervisée du comparatif.
 
-## Structure du projet
+## Installation reproductible
 
-```
-Unsupervised_Deep_Learning/
-├── data/
-│   └── numpy_bitmap/          # .npy Quick, Draw! (auto-téléchargés au 1er usage)
-├── documentation/
-│   ├── Rapport_final/         # LE rapport consolidé du rendu final + figures
-│   ├── autoencoder/ pca/ …    # rapports d'expériences par algo
-│   └── quickdraw-dataset-master/  # doc officielle du dataset (catégories…)
-├── src/
-│   ├── algo_base.py           # l'interface commune Algo (contrat de l'app)
-│   ├── data_import.py         # point d'entrée unique des datasets (MNIST/QuickDraw)
-│   ├── app.py                 # l'app Gradio — les 6 algos, tous les onglets
-│   ├── kmeas/  kohonen/  pca/  autoencoder/  vae/  gan/
-│   │   ├── algo.py            # l'adaptateur vers l'interface Algo
-│   │   ├── utils/             # le cœur : modèle, codec, registre, figures
-│   │   └── models/            # les .npz entraînés (poids + métadonnées)
-│   ├── gan/train_gan.py       # entraîne un GAN + produit toutes ses figures
-│   ├── utils/
-│   │   ├── metrics_common.py  # métriques COMMUNES (MSE/PSNR/SSIM, pureté, FID…)
-│   │   └── pca/               # le cœur NumPy de la PCA (notebooks d'origine)
-│   └── experiments/
-│       ├── run_experiments.py # sweeps VAE + PCA (curated / ofat / grid)
-│       └── compare_all.py     # LE banc final : 6 algos × 3 tâches × 2 datasets
-├── cleanup_relics.py          # range les reliquats de dev dans _to_delete/
-├── requirements.txt
-└── README.md
-```
+Environnement vérifié localement sur **Windows, CPU, Python 3.12.11**, avec TensorFlow 2.21.0, Keras 3.15.1 et Gradio 6.31.0. Le fichier `.python-version` indique Python 3.12.
 
-## Installation
+Depuis la racine, dans PowerShell avec Python 3.12 installé :
 
-```bash
-git clone https://github.com/t0r3l/Unsupervised_Deep_Learning.git
-cd Unsupervised_Deep_Learning
-
-python3 -m venv myenv
-source myenv/bin/activate          # Windows : myenv\Scripts\activate
-
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Optionnel : notebooks / exploration Quick Draw vectorielle
-pip install -r requirements-notebooks.txt
-
-# Optionnel : suite de tests
-pip install -r requirements-dev.txt
-
-# Vérification
-python -c "import tensorflow as tf, keras; print('TF', tf.__version__, '| Keras', keras.__version__)"
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-lock.txt
+python -m pip check
 python -m pytest -q
 ```
 
-Environnement validé avec **Python 3.12**. Prévoir ~1 Go de disque pour les données (chaque `.npy`
-Quick, Draw! fait ~100 Mo ; MNIST est téléchargé par Keras).
+Sous Linux/macOS : créer l’environnement avec `python3.12 -m venv .venv`, puis l’activer avec `source .venv/bin/activate`. Ces plateformes n’ont pas été validées pendant cette intervention ; les mêmes versions ne garantissent pas des résultats bit à bit identiques.
 
-## Données
+`requirements-lock.txt` fige les dépendances de l’application **et des tests** de l’environnement vérifié. `requirements.txt` conserve les plages de compatibilité ; `requirements-notebooks.txt` contient les outils exploratoires optionnels, non inclus dans cette validation. Pour renouveler le verrouillage, installer dans un environnement neuf et refaire les vérifications.
 
-Tout passe par `src/data_import.py` — **aucun téléchargement manuel** :
+## Application
 
-- `load_dataset("mnist")` — 60 000 / 10 000, via Keras ;
-- `load_dataset("quickdraw")` — cat, apple, car (10 000/classe par défaut) ;
-- `load_dataset("quickdraw10")` — 10 classes × 6 000 (le « MNIST-large »).
-
-Les `.npy` officiels sont téléchargés une fois dans `data/numpy_bitmap/` puis
-mappés (on ne charge que les lignes utiles). Split test = 1/7 (ratio MNIST),
-mélange et tirage seedés (42) : **tout le monde voit les mêmes splits**.
-
-## L'app interactive
-
-```bash
-cd src
-python app.py        # http://127.0.0.1:7860
+```powershell
+python src/app.py
 ```
 
-Deux sélecteurs (algo × dataset) commandent tous les onglets : Entraînement
-(widgets construits depuis `algo.params`), Compression/Décompression, Espace
-latent, Dictionnaire, Vues de l'algo (U-matrix du SOM, duel G/D du GAN,
-manifold du VAE…), Courbe d'entraînement, Export ZIP des figures. Les modèles
-sont rangés par algo dans `src/<algo>/models/` et filtrés par dataset.
+Ouvrir l’adresse locale affichée, généralement `http://127.0.0.1:7860`. Choisir un algorithme et un dataset, puis entraîner un premier modèle ou charger un modèle enregistré. L’import Python ne charge aucun dataset ; la construction explicite `app.build_app()` initialise l’interface.
 
-## Reproduire les résultats du rapport
+Onglets : entraînement, compression/décompression, espace latent, dictionnaire, vues propres à la méthode, courbes et export ZIP. Les exports incluent des noms de fichiers portables et un `manifest.json` décrivant le modèle et les paramètres de visualisation. Un nom de modèle déjà utilisé est conservé ; un suffixe est attribué à la nouvelle version.
 
-Chaque chiffre et chaque figure du rapport final sort d'un de ces scripts,
-**seeds fixes** (42) partout :
+**Aucun poids préentraîné n’était fourni dans le ZIP original.** Les modèles créés dans l’application sont enregistrés dans `src/<algorithme>/models/`, avec algorithme, dataset et configuration. Les modèles synthétiques de validation ne constituent pas des modèles de démonstration MNIST/Quick, Draw!.
 
-```bash
-cd src
+## Données et séparation des partitions
 
-# 1. Les GAN (NumPy pur) — modèles + toutes leurs figures (~5-10 min chacun)
-python gan/train_gan.py --dataset mnist
-python gan/train_gan.py --dataset quickdraw --n-train 0
-#    (--quick : 10 époques / 5 000 images pour vérifier que tout tourne)
+Point d’entrée : `src/data_import.py`.
 
-# 2. LE tableau comparatif final — 6 algos × 3 tâches × 2 datasets (~15 min)
-python experiments/compare_all.py
-#    -> src/experiments/results/comparison/results_<ds>.{csv,md}
-#    -> panneaux panel_generation_<ds>.png / panel_reconstruction_<ds>.png
+- `mnist` : partitions officielles 60 000 / 10 000 via Keras.
+- `quickdraw` : catégories cat, apple et car, 10 000 dessins par classe par défaut.
+- `quickdraw10` : dix catégories, 6 000 dessins par classe par défaut.
 
-# Validation rapide et bornée (échantillons équilibrés par classe)
-python experiments/compare_all.py --quick --datasets mnist
+Les bitmaps Quick, Draw! officiels sont téléchargés dans `data/numpy_bitmap/`, validés puis renommés atomiquement. Prévoir plusieurs centaines de Mo pour les trois catégories ; le nombre de lignes utilisées ne réduit pas le téléchargement initial. Un cache invalide produit une erreur explicite. Les données brutes sont ignorées par Git.
 
-# Cibler quelques algorithmes ou fixer exactement les volumes
-python experiments/compare_all.py --datasets mnist --algorithms kmeans pca \
-  --n-train 1000 --n-test 256 --n-gen 256
+Quick, Draw! reçoit un découpage stratifié train/test. Les expériences réservent ensuite 20 % du train pour la validation, sans modifier le test. Les labels servent à la stratification et à l’évaluation, jamais aux cibles d’apprentissage des modèles du comparatif. Les empreintes des partitions sont enregistrées.
 
-# Réutiliser explicitement un GAN du registre
-# (sinon il est entraîné dans le même protocole que les autres algorithmes)
-python experiments/compare_all.py --quick --datasets mnist --reuse-gan
+## Comparaison des six méthodes
 
-# 3. Les sweeps d'hyperparamètres VAE + PCA (protocole détaillé)
-python experiments/run_experiments.py --quick     # ou sans --quick : complet
+Vérification rapide, sur validation, sans recherche d’hyperparamètres :
+
+```powershell
+python src/experiments/compare_all.py --quick --epochs 1 --datasets mnist --n-train 200 --n-test 64 --n-gen 64 --seeds 42 43 --evaluation-split validation
 ```
 
-Les modèles AE/VAE/GAN pré-entraînés du rendu sont déjà dans
-`src/<algo>/models/` : l'app les propose sans rien réentraîner.
+La même commande avec `--datasets mnist quickdraw` vérifie les deux jeux de données. `--n-test` désigne le nombre d’images du **split d’évaluation choisi**, validation ou test.
 
-## Ménage
+Après gel des configurations, exemple de protocole final borné, plus coûteux et non exécuté ici :
 
-`python cleanup_relics.py --apply` range dans `_to_delete/` les reliquats du
-développement (doublon de doc, fichiers vides, un .npz d'autoencodeur égaré
-dans le registre VAE) — vérifier puis supprimer le dossier.
+```powershell
+python src/experiments/compare_all.py --datasets mnist quickdraw --n-train 10000 --n-test 2000 --n-gen 2000 --epochs 20 --seeds 42 43 44 --evaluation-split test
+```
 
-## Licence des données
+Les sorties sont horodatées dans `src/experiments/results/comparison_runs/` : résultats détaillés, moyenne/écart type, protocole et versions, empreintes sources/données, PCA d’évaluation sauvegardée et panneaux visuels. Un dossier de résultats existants n’est pas écrasé. `--reuse-gan` est une option exploratoire : la provenance d’un modèle externe n’est pas contrôlée par ce protocole.
 
-Quick, Draw! est publié par Google sous CC BY 4.0
-(`documentation/quickdraw-dataset-master/LICENSE`). MNIST : CC BY-SA 3.0
-(Yann LeCun & Corinna Cortes).
+Métriques et interprétation :
+
+- MSE, PSNR et SSIM : reconstruction sur la partition annoncée.
+- Pureté et silhouette clusters/pixels : organisation des clusters dans les pixels.
+- Silhouette classes/latent : séparation externe des classes dans les représentations continues ; ce n’est pas la même mesure que la silhouette précédente.
+- **FD-PCA** : distance de Fréchet dans une PCA apprise sur le train, partagée entre méthodes et gelée. Ce n’est pas la FID Inception standard.
+- Compression : budget théorique du code séparé des octets NPZ réellement sérialisés, avec coût du modèle amorti sur le lot évalué. Ce coût dépend du format et du volume d’amortissement.
+- Diversité et voisins proches : diagnostics bornés, qui ne prouvent pas l’absence de mémorisation ni la qualité perceptuelle.
+
+Les capacités et budgets de calcul des méthodes diffèrent. Les temps incluent des diagnostics et des initialisations ; ils ne mesurent pas une inférence à chaud.
+
+## Sélection d’hyperparamètres PCA / VAE
+
+```powershell
+python src/experiments/run_experiments.py --datasets mnist --algos pca,vae --quick --epochs 1 --max-runs 2 --n-train 200 --n-validation 64 --n-test 64 --no-save
+```
+
+Chaque configuration est évaluée **sur validation**. Ajouter `--final-test` évalue seulement le gagnant de validation de chaque algorithme sur le test, sans réentraînement. La sélection utilise la MSE de reconstruction ; elle ne prétend pas optimiser la génération. Éviter de relancer cette étape pour orienter des choix à partir du test.
+
+`--max-runs` s’applique par algorithme et par dataset. `--epochs` explicite est prioritaire sur le mode rapide. Les modes `curated`, `ofat` et `grid` sont disponibles ; `--dry-run` affiche le plan sans entraîner. Les graphiques de configurations hétérogènes sont descriptifs et n’isolent pas un effet causal.
+
+## Validation et preuves
+
+```powershell
+python -m pytest -q
+python scripts/smoke_algorithms.py --output tmp/smoke
+```
+
+Le second outil vérifie les six entraînements minimaux, les codecs et les sauvegardes/rechargements sur des **entrées synthétiques**, dans des registres isolés.
+
+Les preuves de l’intervention sont dans `output/validation/`. Lire le [bilan scientifique et technique](documentation/VALIDATION_ET_METHODOLOGIE.md) pour les corrections avant/après, les essais réels et les limites. Le workflow `.github/workflows/tests.yml` prépare l’exécution automatique des tests et du smoke synthétique sur Windows/Python 3.12 ; son exécution distante reste à vérifier après publication du dépôt.
+
+## Organisation et documents historiques
+
+- `src/algo_base.py` : contrat commun et validation des paramètres.
+- `src/<algorithme>/` : adaptateur, cœur, codec, visualisations et registre.
+- `src/utils/` : métriques, stockage partagé et utilitaires.
+- `src/experiments/` : comparaison et sélection sur validation.
+- `tests/` : tests numériques, données, registres, interface et protocole.
+- `documentation/Rapport_final/` : rendu initial conservé, marqué historique.
+
+Les notebooks, anciennes figures, anciens tableaux et slides sont conservés comme historique exploratoire. Ils n’ont pas tous été réexécutés et ne remplacent pas le nouveau protocole. Aucun gain de qualité prédictive ou de vitesse n’est revendiqué sans expérience dédiée.
+
+Quick, Draw! : source et licence CC BY 4.0 dans `documentation/quickdraw-dataset-master/`. MNIST : source via Keras et page officielle du dataset ; conserver les attributions applicables lors de sa redistribution.

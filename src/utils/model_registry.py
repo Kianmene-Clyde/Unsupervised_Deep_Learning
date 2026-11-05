@@ -16,6 +16,7 @@ import json
 import os
 import re
 import tempfile
+import zipfile
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -101,6 +102,35 @@ def _metadata_json(metadata: Mapping) -> str:
         raise ValueError(f"Métadonnées non sérialisables en JSON : {exc}") from exc
 
 
+def _read_metadata(data, path):
+    raw_metadata = data["metadata"]
+    if raw_metadata.size != 1:
+        raise ValueError("Les métadonnées doivent être une chaîne JSON scalaire.")
+    metadata = json.loads(str(raw_metadata.item()))
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Métadonnées invalides dans {path.name} : dictionnaire attendu.")
+    # json.loads accepts NaN/Infinity by default; the writer deliberately does not.
+    _metadata_json(metadata)
+    return metadata
+
+
+def _open_archive(path):
+    archive = np.load(path, allow_pickle=False)
+    if not hasattr(archive, "files"):
+        raise ValueError("Archive NPZ attendue, et non un tableau NPY.")
+    return archive
+
+
+def load_metadata(models_dir: Path, name: str):
+    """Read only the NPZ metadata member; large weights stay compressed on disk."""
+    path = model_path(models_dir, name)
+    try:
+        with _open_archive(path) as data:
+            return _read_metadata(data, path)
+    except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile) as exc:
+        raise ValueError(f"Impossible de lire les métadonnées de {path.name} : {exc}") from exc
+
+
 def save_model(
     models_dir: Path,
     name: str,
@@ -137,19 +167,16 @@ def load_model(models_dir: Path, name: str, array_key: str):
     if not path.exists():
         raise FileNotFoundError(f"Modèle introuvable : {path}")
     try:
-        with np.load(path, allow_pickle=False) as data:
+        with _open_archive(path) as data:
             missing = {array_key, "metadata"} - set(data.files)
             if missing:
                 raise ValueError(
                     f"Modèle corrompu {path.name} : clés manquantes {sorted(missing)}."
                 )
             values = _validated_array(data[array_key], array_key).copy()
-            raw_metadata = data["metadata"]
-            metadata = json.loads(str(raw_metadata.item()))
-    except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            metadata = _read_metadata(data, path)
+    except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile) as exc:
         raise ValueError(f"Impossible de charger le modèle {path.name} : {exc}") from exc
-    if not isinstance(metadata, dict):
-        raise ValueError(f"Métadonnées invalides dans {path.name} : dictionnaire attendu.")
     return values, metadata
 
 

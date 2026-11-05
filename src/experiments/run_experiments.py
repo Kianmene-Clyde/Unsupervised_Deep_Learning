@@ -1,4 +1,9 @@
-"""Banc d'expérimentation VAE + PCA — piloté par les MÊMES classes que l'app.
+"""Banc d'expérimentation VAE + PCA — sélection sur validation uniquement.
+
+Chaque configuration est évaluée sur une validation stratifiée tirée du train.
+Le test officiel est réservé au gagnant par algorithme, seulement avec
+--final-test. Les poids du gagnant sont conservés sans réentraînement.
+Le mode par défaut est curated ; --max-runs plafonne les essais par algorithme.
 
 But : lancer en une commande beaucoup d'entraînements en faisant varier « plein
 de paramètres », **surtout sur Quick, Draw! et un peu sur MNIST**, sans qu'aucun
@@ -16,7 +21,7 @@ strictement un modèle de l'app, juste entraîné en lot.
 
 --- Deux façons de décrire les expériences ---
 
-1. OFAT (« one factor at a time », le défaut) : on part d'une config de base et,
+1. OFAT (« one factor at a time ») : on part d'une config de base et,
    pour chaque paramètre, on fait varier CE paramètre seul le long d'une liste de
    valeurs. Idéal pour isoler l'effet de chaque bouton.
 2. GRID : produit cartésien de listes fournies dans un JSON.
@@ -41,11 +46,14 @@ Lancer depuis src/experiments/ (ou n'importe où : le chemin src est ajouté seu
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.metadata
 import itertools
 import json
 import os
 import sys
 import time
+import platform
 from datetime import datetime
 from pathlib import Path
 
@@ -64,7 +72,8 @@ SRC = Path(__file__).resolve().parents[1]
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from data_import import DATASETS, load_dataset  # noqa: E402
+from data_import import DATASETS, load_dataset, split_train_validation  # noqa: E402
+from utils.metrics_common import mse  # noqa: E402
 
 IMAGE_DIM = 784
 
@@ -233,12 +242,9 @@ def build_runs(baseline, sweeps, grid, mode):
 # --------------------------------------------------------------------------- #
 # Données
 # --------------------------------------------------------------------------- #
-def load_data(dataset, n_train, n_test, seed, quickdraw_per_class):
-    """Charge le dataset via l'app, puis sous-échantillonne train/test.
-
-    Le MÊME (X_train, X_test) sert à TOUS les runs de ce dataset : les MSE sont
-    ainsi directement comparables. n_train/n_test = None -> tout garder.
-    """
+def load_data(dataset, n_train, n_test, seed, quickdraw_per_class,
+              n_validation=None, validation_fraction=0.2):
+    """Shared train/validation partitions; official test is reserved for winners."""
     kwargs = {}
     if dataset in ("quickdraw", "quickdraw10"):
         kwargs["max_per_class"] = quickdraw_per_class
@@ -253,9 +259,13 @@ def load_data(dataset, n_train, n_test, seed, quickdraw_per_class):
         idx = rng.choice(len(X), size=n, replace=False)
         return X[idx], y[idx]
 
-    X_train, y_train = subsample(ds.X_train, ds.y_train, n_train)
+    X_train, y_train, X_validation, y_validation = split_train_validation(
+        ds.X_train, ds.y_train, validation_fraction, seed,
+    )
+    X_train, y_train = subsample(X_train, y_train, n_train)
+    X_validation, y_validation = subsample(X_validation, y_validation, n_validation)
     X_test, y_test = subsample(ds.X_test, ds.y_test, n_test)
-    return ds, X_train, y_train, X_test, y_test
+    return ds, X_train, y_train, X_validation, y_validation, X_test, y_test
 
 
 # --------------------------------------------------------------------------- #
@@ -275,16 +285,14 @@ def pca_reconstruct(algo, weights, meta, X):
 
 
 def mse_per_pixel(X, X_hat):
-    X = np.asarray(X, dtype=np.float64)
-    X_hat = np.asarray(X_hat, dtype=np.float64)
-    return float(np.mean((X - X_hat) ** 2))
+    return mse(X, X_hat)
 
 
 # --------------------------------------------------------------------------- #
 # Un run
 # --------------------------------------------------------------------------- #
-def run_one(algo_key, algo, params, X_train, X_test, dataset, n_train,
-            save_models, used_names):
+def run_one(algo_key, algo, params, X_train, X_validation, dataset, n_train,
+            save_models, used_names, candidate_store=None):
     """Entraîne, mesure, (sauvegarde) et renvoie (record plat, detail complet)."""
     p = dict(params)
     p["n_samples"] = n_train
@@ -310,13 +318,19 @@ def run_one(algo_key, algo, params, X_train, X_test, dataset, n_train,
         return record, detail
 
     # Même enrichissement que l'app (app.py:454) : c'est ce sur quoi elle filtre.
-    meta.update({"algo": algo_key, "dataset": dataset, "n_samples": n_train})
+    meta.update({"algo": algo_key, "dataset": dataset, "n_samples": n_train,
+                 "fit_split": "train", "selection_split": "validation"})
 
     k = int(meta["k"])
     train_mse = meta["inertia"] / (n_train * IMAGE_DIM)
-    X_hat_test = (vae_reconstruct(weights, X_test) if algo_key == "vae"
-                  else pca_reconstruct(algo, weights, meta, X_test))
-    test_mse = mse_per_pixel(X_test, X_hat_test)
+    try:
+        X_hat_validation = reconstruct_for(algo_key, algo, weights, meta, X_validation)
+        validation_mse = mse_per_pixel(X_validation, X_hat_validation)
+        if not np.isfinite(validation_mse):
+            raise ValueError("MSE validation non finie.")
+    except Exception as exc:
+        record.update(status="error", error=f"Évaluation validation : {exc}")
+        return record, detail
 
     record.update({
         "status": "ok",
@@ -324,7 +338,8 @@ def run_one(algo_key, algo, params, X_train, X_test, dataset, n_train,
         "code_floats": k,
         "ratio_vs_uint8": IMAGE_DIM * 8 / (k * 32),
         "train_mse": train_mse,
-        "test_mse": test_mse,
+        "validation_mse": validation_mse,
+        "evaluation_split": "validation",
         "inertia": float(meta["inertia"]),
         "train_seconds": round(train_seconds, 2),
     })
@@ -356,7 +371,74 @@ def run_one(algo_key, algo, params, X_train, X_test, dataset, n_train,
         except Exception as e:  # noqa: BLE001
             record["save_error"] = str(e)
 
+    if candidate_store is not None:
+        previous = candidate_store.get(algo_key)
+        if previous is None or validation_mse < previous["record"]["validation_mse"]:
+            candidate_store[algo_key] = {"weights": weights, "meta": meta,
+                                         "record": record, "params": dict(params)}
+
     return record, detail
+
+
+def reconstruct_for(algo_key, algo, weights, meta, X):
+    if algo_key == "vae":
+        # A long sweep can evict an early winner from the bounded model cache.
+        # Restore its architecture from persisted metadata, never by retraining.
+        from vae.utils.model import remember
+        remember(weights, algo._config_of(meta))
+        return vae_reconstruct(weights, X)
+    return pca_reconstruct(algo, weights, meta, X)
+
+
+def evaluate_selected(candidates, instances, X_test):
+    """Evaluate exactly one validation-selected candidate per algorithm."""
+    selected = []
+    for algo_key, candidate in candidates.items():
+        X_hat = reconstruct_for(algo_key, instances[algo_key], candidate["weights"],
+                                candidate["meta"], X_test)
+        selected.append({"algo": algo_key, "params": candidate["params"],
+                         "selection_metric": "validation_mse",
+                         "validation_mse": candidate["record"]["validation_mse"],
+                         "test_mse": mse_per_pixel(X_test, X_hat),
+                         "n_test": len(X_test), "refit_on_validation": False,
+                         "saved_as": candidate["record"].get("saved_as")})
+    return selected
+
+
+def _fingerprint(X, y):
+    digest = hashlib.sha256()
+    for values in (X, y):
+        array = np.ascontiguousarray(values)
+        digest.update(str((array.shape, array.dtype.str)).encode())
+        digest.update(memoryview(array).cast("B"))
+    return digest.hexdigest()
+
+
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    return value
+
+
+def write_json(path, value):
+    path.write_text(json.dumps(_json_safe(value), indent=2, ensure_ascii=False,
+                               allow_nan=False), encoding="utf-8")
+
+
+def runtime_versions():
+    versions = {}
+    for package in ("numpy", "scipy", "matplotlib", "tensorflow", "keras"):
+        try:
+            versions[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            versions[package] = None
+    return versions
 
 
 def unique_name(base, used_names):
@@ -400,10 +482,10 @@ def _csv_cell(v):
 # Figures de diagnostic (par dataset, PROPRES à un algo — jamais PCA vs VAE)
 # --------------------------------------------------------------------------- #
 def plot_vae_kl_tradeoff(records, baseline, out_dir, dataset):
-    """Arbitrage du VAE : reconstruction et KL selon le poids KL (VAE seul)."""
+    """Descriptive points, not a causal KL ablation when other settings vary."""
     vae = [r for r in records if r.get("algo") == "vae"
            and r.get("dataset") == dataset and r.get("status") == "ok"]
-    pts = sorted({(r["kl_weight"], r["train_mse"], r.get("kl_final", float("nan")))
+    pts = sorted({(r["kl_weight"], r["validation_mse"], r.get("kl_final", float("nan")))
                   for r in vae
                   if r.get("architecture") == baseline["architecture"]
                   and r.get("k") == baseline["latent_dim"]
@@ -413,39 +495,44 @@ def plot_vae_kl_tradeoff(records, baseline, out_dir, dataset):
     kls, mses, klf = zip(*pts)
     x = range(len(kls))
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.8))
-    ax1.plot(x, mses, "o-", color="tab:blue")
+    ax1.scatter(x, mses, color="tab:blue")
     ax1.set_xticks(list(x)); ax1.set_xticklabels([f"{v:g}" for v in kls])
-    ax1.set_xlabel("poids KL"); ax1.set_ylabel("MSE reconstruction (train)")
-    ax1.set_title("Le prix de la régularisation"); ax1.grid(True, alpha=0.3)
-    ax2.plot(x, klf, "o-", color="tab:red")
+    ax1.set_xlabel("poids KL de la configuration"); ax1.set_ylabel("MSE reconstruction (validation)")
+    ax1.set_title("Reconstruction observée"); ax1.grid(True, alpha=0.3)
+    ax2.scatter(x, klf, color="tab:red")
     ax2.set_xticks(list(x)); ax2.set_xticklabels([f"{v:g}" for v in kls])
     ax2.set_xlabel("poids KL"); ax2.set_ylabel("KL finale (sommée sur les dims)")
-    ax2.set_title("Rapprochement du latent vers N(0, 1)"); ax2.grid(True, alpha=0.3)
-    fig.suptitle(f"VAE {dataset} — arbitrage reconstruction / KL "
+    ax2.set_title("KL observée"); ax2.grid(True, alpha=0.3)
+    fig.suptitle(f"VAE {dataset} — configurations explorées "
                  f"(latent={baseline['latent_dim']})", fontweight="bold")
-    fig.tight_layout()
+    fig.text(.5, .01, "Autres hyperparamètres potentiellement différents : aucun effet causal de KL isolé.",
+             ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, .05, 1, .95))
     path = out_dir / f"vae_kl_tradeoff_{dataset}.png"
     fig.savefig(path, dpi=130); plt.close(fig)
     return path
 
 
 def plot_vae_mse_vs_latent(records, out_dir, dataset):
-    """MSE test vs dimension latente, une courbe par kl_weight (VAE seul)."""
+    """MSE validation vs dimension latente, une courbe par kl_weight."""
     vae = [r for r in records if r.get("algo") == "vae"
            and r.get("dataset") == dataset and r.get("status") == "ok"
            and r.get("architecture") == "dense"]
     fig, ax = plt.subplots(figsize=(8, 5))
     drew = False
     for kl in sorted({r.get("kl_weight") for r in vae if r.get("kl_weight") is not None}):
-        pts = sorted({(r["k"], r["test_mse"]) for r in vae if r.get("kl_weight") == kl})
+        pts = sorted({(r["k"], r["validation_mse"]) for r in vae if r.get("kl_weight") == kl})
         if len(pts) >= 2:
             ks, ms = zip(*pts)
-            ax.plot(ks, ms, "o-", label=f"kl={kl:g}"); drew = True
+            ax.scatter(ks, ms, label=f"kl={kl:g}"); drew = True
     if not drew:
         plt.close(fig); return None
-    ax.set_xlabel("dimension latente"); ax.set_ylabel("MSE reconstruction (test)")
-    ax.set_title(f"VAE {dataset} — MSE vs dimension latente"); ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=8); fig.tight_layout()
+    ax.set_xlabel("dimension latente"); ax.set_ylabel("MSE reconstruction (validation)")
+    ax.set_title(f"VAE {dataset} — configurations explorées (validation)"); ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8)
+    fig.text(.5, .01, "Architectures, optimiseurs et budgets peuvent différer ; comparaison descriptive.",
+             ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, .05, 1, 1))
     path = out_dir / f"vae_mse_vs_latent_{dataset}.png"
     fig.savefig(path, dpi=130); plt.close(fig)
     return path
@@ -501,7 +588,13 @@ def main():
     ap.add_argument("--n-train", type=int, default=0,
                     help="Images d'entraînement (0 = TOUT le split, le défaut).")
     ap.add_argument("--n-test", type=int, default=0,
-                    help="Images de test pour la MSE (0 = TOUT le split, le défaut).")
+                    help="Images de test réservées au candidat sélectionné (0 = tout).")
+    ap.add_argument("--n-validation", type=int, default=0,
+                    help="Images de validation par configuration (0 = tout).")
+    ap.add_argument("--validation-fraction", type=float, default=0.2,
+                    help="Fraction stratifiée du train réservée à la validation.")
+    ap.add_argument("--final-test", action="store_true",
+                    help="Évaluer sur le test le seul gagnant de validation par algo.")
     ap.add_argument("--quickdraw-per-class", type=int, default=4000,
                     help="Dessins par classe pour quickdraw* avant sous-échantillon.")
     ap.add_argument("--data-seed", type=int, default=42,
@@ -522,8 +615,20 @@ def main():
     args = ap.parse_args()
 
     algos_wanted = [a.strip() for a in args.algos.split(",") if a.strip()]
+    if not algos_wanted or set(algos_wanted) - set(CURATED):
+        ap.error("--algos doit contenir vae et/ou pca.")
+    if len(set(algos_wanted)) != len(algos_wanted):
+        ap.error("--algos contient un doublon.")
+    for option in ("n_train", "n_test", "n_validation", "max_runs", "data_seed"):
+        if getattr(args, option) < 0:
+            ap.error(f"--{option.replace('_', '-')} doit être positif ou nul.")
+    if args.quickdraw_per_class < 2 or (args.epochs is not None and args.epochs < 1):
+        ap.error("--quickdraw-per-class >= 2 et --epochs >= 1 sont requis.")
+    if not 0 < args.validation_fraction < 1:
+        ap.error("--validation-fraction doit être strictement entre 0 et 1.")
     n_train = None if args.n_train in (0, None) else args.n_train
     n_test = None if args.n_test in (0, None) else args.n_test
+    n_validation = args.n_validation or None
     save_models = not args.no_save
 
     cfg = load_config(args.config)
@@ -533,13 +638,16 @@ def main():
         vae_baseline["epochs"] = args.epochs
 
     datasets = parse_datasets(args.datasets)
+    if not datasets:
+        ap.error("Au moins un dataset est requis.")
 
     # Époques forcées : par --quick (3) ou --epochs. None = laisser chaque config
     # décider (utile en curated, où chaque test a ses propres époques).
-    force_epochs = 3 if args.quick else args.epochs
+    force_epochs = args.epochs if args.epochs is not None else (3 if args.quick else None)
     if args.quick:
         n_train = min(n_train or 600, 600)
         n_test = min(n_test or 400, 400)
+        n_validation = min(n_validation or 400, 400)
 
     grids = {"vae": (cfg.get("vae", {}) or {}).get("grid", {}),
              "pca": (cfg.get("pca", {}) or {}).get("grid", {})}
@@ -576,8 +684,10 @@ def main():
         return
 
     # --- Dossier de logs.
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     out_dir = Path(args.output) if args.output else (SRC.parent / "results" / stamp)
+    if out_dir.exists() and any(out_dir.iterdir()):
+        ap.error("Le dossier de sortie doit être vide pour préserver les résultats existants.")
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"[out] logs -> {out_dir}")
     if save_models:
@@ -593,7 +703,7 @@ def main():
         from pca.algo import PCAAlgo
         instances["pca"] = PCAAlgo()
 
-    records, details = [], []
+    records, details, selected_results, partitions = [], [], [], {}
     t_start = time.perf_counter()
 
     for dataset, intensity in datasets:
@@ -602,23 +712,31 @@ def main():
         if dataset in ("quickdraw", "quickdraw10"):
             print("[data] Quick, Draw! : téléchargement des .npy au 1er appel "
                   "(mis en cache dans data/numpy_bitmap/).")
-        ds, X_train, y_train, X_test, y_test = load_data(
+        ds, X_train, y_train, X_validation, y_validation, X_test, y_test = load_data(
             dataset, n_train, n_test, args.data_seed, args.quickdraw_per_class,
+            n_validation, args.validation_fraction,
         )
         n_train_eff = len(X_train)
         print(f"[data] {ds.describe()}")
-        print(f"[data] train={len(X_train)}  test={len(X_test)}")
+        print(f"[data] train={len(X_train)}  validation={len(X_validation)}  test réservé={len(X_test)}")
+        partitions[dataset] = {
+            split: {"n": len(X), "sha256": _fingerprint(X, y)}
+            for split, X, y in (("train", X_train, y_train),
+                                ("validation", X_validation, y_validation),
+                                ("test", X_test, y_test))
+        }
 
-        used_names = set()
+        used_names = {name for instance in instances.values() for name in instance.list_models()}
+        candidates = {}
         for i, (algo_key, params) in enumerate(plan, 1):
             label = ", ".join(f"{k}={_flat(v)}" for k, v in params.items())
             print(f"[{dataset} {i}/{len(plan)}] {algo_key}: {label}", flush=True)
             rec, det = run_one(
-                algo_key, instances[algo_key], params, X_train, X_test,
-                dataset, n_train_eff, save_models, used_names,
+                algo_key, instances[algo_key], params, X_train, X_validation,
+                dataset, n_train_eff, save_models, used_names, candidates,
             )
             if rec.get("status") == "ok":
-                extra = (f"test_mse={rec['test_mse']:.4f} "
+                extra = (f"validation_mse={rec['validation_mse']:.4f} "
                          f"train_mse={rec['train_mse']:.4f} ({rec['train_seconds']}s)")
                 if rec.get("saved_as"):
                     extra += f"  saved: {rec['saved_as']}"
@@ -630,8 +748,16 @@ def main():
 
             # Écriture incrémentale : un crash tardif ne perd pas les runs faits.
             write_csv(records, out_dir / "results.csv")
-            (out_dir / "details.json").write_text(
-                json.dumps(details, indent=2, default=float), encoding="utf-8")
+            write_json(out_dir / "details.json", details)
+
+        write_json(out_dir / f"selection_{dataset}.json", {
+            key: {"params": candidate["params"], "validation_mse": candidate["record"]["validation_mse"]}
+            for key, candidate in candidates.items()
+        })
+        if args.final_test:
+            selected_results.extend({"dataset": dataset, **row}
+                                    for row in evaluate_selected(candidates, instances, X_test))
+            write_json(out_dir / "selected_test_results.json", selected_results)
 
         # Figures de diagnostic de CE dataset (VAE seul, pas de comparaison).
         if not args.no_plots and "vae" in algos_wanted:
@@ -649,16 +775,27 @@ def main():
         print(f"[done] {n_saved} modèles rangés dans les registres de l'app "
               f"— ouvre `python app.py` et choisis le dataset pour les voir.")
 
-    (out_dir / "run_meta.json").write_text(json.dumps({
+    write_json(out_dir / "run_meta.json", {
         "datasets": datasets, "mode": args.mode,
         "n_train": args.n_train, "n_test": args.n_test,
         "data_seed": args.data_seed, "algos": algos_wanted,
+        "selection_split": "validation", "validation_fraction": args.validation_fraction,
+        "final_test_requested": args.final_test, "partitions": partitions,
+        "label_usage": "stratification uniquement ; aucun label passé aux modèles",
+        "python": platform.python_version(),
+        "platform": platform.platform(), "options": vars(args), "config": cfg,
+        "versions": runtime_versions(),
+        "source_sha256": {str(path.relative_to(SRC.parent)).replace("\\", "/"):
+                          hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in sorted(SRC.rglob("*.py"))},
         "vae_baseline": vae_baseline, "pca_baseline": pca_baseline,
         "saved_models": save_models, "n_models_saved": n_saved,
         "total_seconds": round(total, 1), "timestamp": stamp,
-    }, indent=2, default=float), encoding="utf-8")
+    })
 
     print(f"\nLogs : {out_dir}  (results.csv · details.json · run_meta.json · *.png)")
+    if not n_ok or any(record.get("status") == "error" or record.get("save_error") for record in records):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

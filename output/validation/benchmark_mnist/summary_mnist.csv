@@ -1,0 +1,117 @@
+algo,metric,n_finite,mean,std
+K-means (k=64),train_s,2,0.24163150000094902,0.24743759309853627
+K-means (k=64),evaluation_s,2,0.21943684999860125,0.11465800096785335
+K-means (k=64),theoretical_code_bits,2,6.0,0.0
+K-means (k=64),theoretical_ratio,2,1045.3333333333333,0.0
+K-means (k=64),code_npz_bytes,2,269.0,0.0
+K-means (k=64),model_npz_bytes,2,40055.5,127.9863273947651
+K-means (k=64),amortized_npz_bits_per_image,2,5040.5625,15.998290924345637
+K-means (k=64),mse,2,0.048223260457582615,0.0003258778243927424
+K-means (k=64),psnr,2,13.1674838778852,0.029348496296280852
+K-means (k=64),ssim,2,0.6009109992697342,0.005997066603741303
+K-means (k=64),purity,2,0.84375,0.02209708691207961
+K-means (k=64),silhouette_cluster_pixels,2,0.0026269345364020123,0.00646769636321453
+K-means (k=64),fd_pca,2,13.836607026689656,0.4498580598256231
+K-means (k=64),gen_unique_fraction,2,1.0,0.0
+K-means (k=64),gen_pixel_variance,2,0.05264559106696089,0.0007083990241735276
+K-means (k=64),gen_nearest_train_mse,2,0.03890625919997616,0.00015296580242448392
+K-means (k=64),gen_nearest_reference_mse,2,0.06506913014183116,0.0033068665663455897
+K-means (k=64),diagnostic_n_generated,2,64.0,0.0
+K-means (k=64),diagnostic_n_train,2,200.0,0.0
+K-means (k=64),diagnostic_n_reference,2,64.0,0.0
+Kohonen (8x8),train_s,2,0.04504559999986668,0.03689640757929038
+Kohonen (8x8),evaluation_s,2,0.2266426500009402,0.1415745862761887
+Kohonen (8x8),theoretical_code_bits,2,6.0,0.0
+Kohonen (8x8),theoretical_ratio,2,1045.3333333333333,0.0
+Kohonen (8x8),code_npz_bytes,2,269.0,0.0
+Kohonen (8x8),model_npz_bytes,2,136620.0,52.32590180780452
+Kohonen (8x8),amortized_npz_bits_per_image,2,17111.125,6.540737725975565
+Kohonen (8x8),mse,2,0.05040854344010112,0.0002715315311911878
+Kohonen (8x8),psnr,2,12.974990017195541,0.02339389474341513
+Kohonen (8x8),ssim,2,0.4648918806626979,0.002648731421181563
+Kohonen (8x8),purity,2,0.796875,0.0
+Kohonen (8x8),silhouette_cluster_pixels,2,-0.009097437341159557,0.030826044043686666
+Kohonen (8x8),fd_pca,2,23.838986737934455,1.1667500853811248
+Kohonen (8x8),gen_unique_fraction,2,1.0,0.0
+Kohonen (8x8),gen_pixel_variance,2,0.007158109656968297,0.0014125921484981463
+Kohonen (8x8),gen_nearest_train_mse,2,0.03581231881188736,0.0016447245307093271
+Kohonen (8x8),gen_nearest_reference_mse,2,0.041145831567690416,0.0010094298231713636
+Kohonen (8x8),diagnostic_n_generated,2,64.0,0.0
+Kohonen (8x8),diagnostic_n_train,2,200.0,0.0
+Kohonen (8x8),diagnostic_n_reference,2,64.0,0.0
+PCA (d=16),train_s,2,1.1264289499995357,0.8145712434452627
+PCA (d=16),evaluation_s,2,0.12993230000029143,0.06141901217374133
+PCA (d=16),theoretical_code_bits,2,512.0,0.0
+PCA (d=16),theoretical_ratio,2,12.25,0.0
+PCA (d=16),code_npz_bytes,2,4054.0,0.0
+PCA (d=16),model_npz_bytes,2,74395.0,0.0
+PCA (d=16),amortized_npz_bits_per_image,2,9806.125,0.0
+PCA (d=16),mse,2,0.027472882087211097,0.0
+PCA (d=16),psnr,2,15.610957778231448,0.0
+PCA (d=16),ssim,2,0.6027593274057655,0.0
+PCA (d=16),silhouette_class_latent,2,0.0628077267086834,0.0
+PCA (d=16),fd_pca,2,13.764518705187886,0.24133981751385955
+PCA (d=16),gen_unique_fraction,2,1.0,0.0
+PCA (d=16),gen_pixel_variance,2,0.027784974661866406,0.0002979338653384424
+PCA (d=16),gen_nearest_train_mse,2,0.04647576553377045,0.0005529705646597871
+PCA (d=16),gen_nearest_reference_mse,2,0.05169634176765186,0.0005431021211299201
+PCA (d=16),diagnostic_n_generated,2,64.0,0.0
+PCA (d=16),diagnostic_n_train,2,200.0,0.0
+PCA (d=16),diagnostic_n_reference,2,64.0,0.0
+AutoEncoder (z=16),train_s,2,2.696855800000776,1.1350578460749134
+AutoEncoder (z=16),evaluation_s,2,0.2091616999987309,0.04908494858647969
+AutoEncoder (z=16),theoretical_code_bits,2,512.0,0.0
+AutoEncoder (z=16),theoretical_ratio,2,12.25,0.0
+AutoEncoder (z=16),code_npz_bytes,2,4044.0,11.313708498984761
+AutoEncoder (z=16),model_npz_bytes,2,777560.0,8.48528137423857
+AutoEncoder (z=16),amortized_npz_bits_per_image,2,97700.5,0.3535533905932738
+AutoEncoder (z=16),mse,2,0.2306522704509015,0.000317824223634929
+AutoEncoder (z=16),psnr,2,6.37042472159208,0.0059843048563801345
+AutoEncoder (z=16),ssim,2,0.0034967021535657417,0.00029793821034410496
+AutoEncoder (z=16),silhouette_class_latent,2,-0.07102540665934459,0.00564959966702819
+AutoEncoder (z=16),fd_pca,2,66.87006023243651,0.0630200108928119
+AutoEncoder (z=16),gen_unique_fraction,2,1.0,0.0
+AutoEncoder (z=16),gen_pixel_variance,2,2.3562004461799527e-05,9.91461638261516e-06
+AutoEncoder (z=16),gen_nearest_train_mse,2,0.22067415942106933,0.00018861949808033038
+AutoEncoder (z=16),gen_nearest_reference_mse,2,0.22407166241055892,0.00015536155643691647
+AutoEncoder (z=16),diagnostic_n_generated,2,64.0,0.0
+AutoEncoder (z=16),diagnostic_n_train,2,200.0,0.0
+AutoEncoder (z=16),diagnostic_n_reference,2,64.0,0.0
+VAE (z=16),train_s,2,1.871649000000616,0.4642639679487604
+VAE (z=16),evaluation_s,2,0.2446349999972881,0.03307392973732788
+VAE (z=16),theoretical_code_bits,2,512.0,0.0
+VAE (z=16),theoretical_ratio,2,12.25,0.0
+VAE (z=16),code_npz_bytes,2,4042.0,4.242640687119285
+VAE (z=16),model_npz_bytes,2,779534.5,16.263455967290593
+VAE (z=16),amortized_npz_bits_per_image,2,97947.0625,1.5026019100214134
+VAE (z=16),mse,2,0.23072030470192645,0.0001573845411831315
+VAE (z=16),psnr,2,6.369142339286778,0.0029625152914863006
+VAE (z=16),ssim,2,0.0034442526035182008,2.100323826903267e-05
+VAE (z=16),silhouette_class_latent,2,-0.0903045232133757,0.010795387662366008
+VAE (z=16),fd_pca,2,65.38859491286178,0.1473120909190632
+VAE (z=16),gen_unique_fraction,2,1.0,0.0
+VAE (z=16),gen_pixel_variance,2,0.000565499756621888,2.5812737250529485e-05
+VAE (z=16),gen_nearest_train_mse,2,0.21938254391052564,0.001045300493179259
+VAE (z=16),gen_nearest_reference_mse,2,0.22261459311516,0.0007433261913637886
+VAE (z=16),diagnostic_n_generated,2,64.0,0.0
+VAE (z=16),diagnostic_n_train,2,200.0,0.0
+VAE (z=16),diagnostic_n_reference,2,64.0,0.0
+"GAN (z=64, inversion diagnostique)",train_s,2,0.7237276999985625,0.3526825178820589
+"GAN (z=64, inversion diagnostique)",evaluation_s,2,0.47930504999931145,0.010173074549191266
+"GAN (z=64, inversion diagnostique)",theoretical_code_bits,2,2048.0,0.0
+"GAN (z=64, inversion diagnostique)",theoretical_ratio,2,3.0625,0.0
+"GAN (z=64, inversion diagnostique)",code_npz_bytes,2,1833.5,1010.4555903155764
+"GAN (z=64, inversion diagnostique)",model_npz_bytes,2,4043414.0,113.13708498984761
+"GAN (z=64, inversion diagnostique)",amortized_npz_bits_per_image,2,505655.9375,140.449084413178
+"GAN (z=64, inversion diagnostique)",mse,2,0.2585226874080353,0.00201158973682179
+"GAN (z=64, inversion diagnostique)",psnr,2,5.875079118640895,0.03379320968370885
+"GAN (z=64, inversion diagnostique)",ssim,2,0.009600641307134566,0.0053893305794347635
+"GAN (z=64, inversion diagnostique)",silhouette_class_latent,2,-0.5082719919137939,0.08895805516597484
+"GAN (z=64, inversion diagnostique)",fd_pca,2,56.593050966760345,0.12186769482002176
+"GAN (z=64, inversion diagnostique)",gen_unique_fraction,2,1.0,0.0
+"GAN (z=64, inversion diagnostique)",gen_pixel_variance,2,0.04611028670955482,0.0008517989713106328
+"GAN (z=64, inversion diagnostique)",gen_nearest_train_mse,2,0.27884892764076585,0.0007129145331710883
+"GAN (z=64, inversion diagnostique)",gen_nearest_reference_mse,2,0.28267025327878287,0.00040743211548838307
+"GAN (z=64, inversion diagnostique)",diagnostic_n_generated,2,64.0,0.0
+"GAN (z=64, inversion diagnostique)",diagnostic_n_train,2,200.0,0.0
+"GAN (z=64, inversion diagnostique)",diagnostic_n_reference,2,64.0,0.0

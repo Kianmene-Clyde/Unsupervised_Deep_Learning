@@ -32,6 +32,7 @@ from .utils.model import (
     train_autoencoder,
 )
 from .utils.registry import delete_model, list_models, load_model, save_model
+from .utils.registry import model_path as registry_model_path
 from .utils import visualization as viz
 
 from algo_base import Algo, Param
@@ -246,6 +247,9 @@ class Autoencoder(Algo):
         return codec.decode(code, weights)
 
     # --------------------------------------------------------------- Registre
+
+    def model_path(self, name):
+        return registry_model_path(name)
 
     def list_models(self):
         return list_models()

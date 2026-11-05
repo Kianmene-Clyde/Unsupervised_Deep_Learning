@@ -1,0 +1,41 @@
+[
+  {
+    "dataset": "mnist",
+    "algo": "pca",
+    "params": {
+      "n_components": 20,
+      "center": "feature"
+    },
+    "selection_metric": "validation_mse",
+    "validation_mse": 0.026663928630825427,
+    "test_mse": 0.026314834435009687,
+    "n_test": 64,
+    "refit_on_validation": false,
+    "saved_as": null
+  },
+  {
+    "dataset": "mnist",
+    "algo": "vae",
+    "params": {
+      "architecture": "dense",
+      "latent_dim": 10,
+      "kl_weight": 0.0,
+      "hidden_dims": "128-32",
+      "conv_filters": "32-64",
+      "hidden_activation": "relu",
+      "latent_activation": "linear",
+      "output_activation": "sigmoid",
+      "optimizer": "adam",
+      "learning_rate": 0.001,
+      "batch_size": 256,
+      "epochs": 1,
+      "seed": 42
+    },
+    "selection_metric": "validation_mse",
+    "validation_mse": 0.2308484101941884,
+    "test_mse": 0.2303748651312271,
+    "n_test": 64,
+    "refit_on_validation": false,
+    "saved_as": null
+  }
+]

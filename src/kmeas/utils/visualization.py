@@ -274,6 +274,8 @@ def plot_centroid_map(centroids, cluster_labels=None, y_true=None, n_cols=None,
     """
     C = np.asarray(tf.reshape(centroids, (-1, 28, 28)))
     k = C.shape[0]
+    if k < 1 or not np.isfinite(cell_size) or cell_size <= 0:
+        raise ValueError("Il faut au moins un centroïde et une taille de case positive.")
 
     sizes = None
     if cluster_labels is not None:
@@ -306,10 +308,15 @@ def plot_centroid_map(centroids, cluster_labels=None, y_true=None, n_cols=None,
 
     if n_cols is None:
         n_cols = int(np.ceil(np.sqrt(k)))
+    if not isinstance(n_cols, (int, np.integer)) or n_cols < 1:
+        raise ValueError("n_cols doit être un entier strictement positif.")
     n_rows = int(np.ceil(k / n_cols))
 
+    # Reserve title height outside the image grid. Subtracting 0.6 inches
+    # from a one-row, 0.6-inch figure previously made top=0 and crashed export.
+    figure_height = n_rows * cell_size + 0.8
     fig, axes = plt.subplots(n_rows, n_cols,
-                             figsize=(n_cols * cell_size, n_rows * cell_size))
+                             figsize=(max(3.2, n_cols * cell_size), figure_height))
     axes = np.array(axes).reshape(-1)
 
     for i, ax in enumerate(axes):
@@ -333,7 +340,7 @@ def plot_centroid_map(centroids, cluster_labels=None, y_true=None, n_cols=None,
     fig.suptitle(f"{title}\n{subtitle}", fontsize=11)
     # tight_layout réserve la place des titres de chaque case et disperse la
     # grille : on règle l'espacement à la main pour garder une carte dense.
-    top = 1 - 0.6 / (n_rows * cell_size)
+    top = 1 - 0.6 / figure_height
     fig.subplots_adjust(left=0.01, right=0.99, bottom=0.01, top=top,
                         wspace=0.05, hspace=0.35 if dominant is not None else 0.05)
 

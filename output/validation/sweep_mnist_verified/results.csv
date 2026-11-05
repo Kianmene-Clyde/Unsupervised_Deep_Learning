@@ -1,0 +1,5 @@
+algo,dataset,n_components,center,status,k,code_floats,ratio_vs_uint8,train_mse,validation_mse,evaluation_split,inertia,train_seconds,explained_variance_kept,architecture,latent_dim,kl_weight,hidden_dims,conv_filters,hidden_activation,latent_activation,output_activation,optimizer,learning_rate,batch_size,epochs,seed,kl_final,total_loss_final,latent_std_mean
+pca,mnist,5,feature,ok,5,5,39.2,0.043287243485185485,0.04834489409847696,validation,6787.4397784770845,0.4,0.35292168881976393,,,,,,,,,,,,,,,,
+pca,mnist,20,feature,ok,20,20,9.8,0.019224566222511463,0.026663928630825427,validation,3014.4119836897976,0.32,0.6916661930724793,,,,,,,,,,,,,,,,
+vae,mnist,,,ok,2,2,98.0,0.23059998452663422,0.23108915015842446,validation,36158.077573776245,2.04,,dense,2,0.001,128-32,32-64,relu,linear,sigmoid,adam,0.001,256,1,42,0.26082003116607666,0.23195987939834595,0.21109214425086975
+vae,mnist,,,ok,10,10,19.6,0.2303476780653,0.2308484101941884,validation,36118.51592063904,1.72,,dense,10,0.0,128-32,32-64,relu,linear,sigmoid,adam,0.001,256,1,42,1.0274423360824585,0.23279327154159546,0.20335052609443666

@@ -30,6 +30,7 @@ from __future__ import annotations
 import numpy as np
 
 from utils.pca.dim_reduction import PCA, fit_pca
+from utils.neural_config import positive_integer
 
 IMG_SIZE = 28
 N_FEATURES = IMG_SIZE * IMG_SIZE  # 784
@@ -48,12 +49,20 @@ def fit_latent_gaussian(pca: PCA, X, y=None, ridge: float = 1e-6):
     Otherwise: a dict ``{label: (mean, cov)}`` mapping each class label to its
     Gaussian parameters.
     """
-    Z = pca.transform(X)
+    if not np.isfinite(ridge) or ridge < 0:
+        raise ValueError("ridge doit être fini et positif ou nul.")
+    Z = np.asarray(pca.transform(X), dtype=np.float64)
+    if Z.ndim != 2:
+        raise ValueError("X doit contenir une matrice d'observations.")
     d = Z.shape[1]
 
     def _gaussian(codes):
         mean = codes.mean(axis=0)
-        cov = np.cov(codes, rowvar=False)
+        # One observation cannot estimate covariance: np.cov may return NaNs
+        # or a scalar measuring spread across coordinates. A singleton class
+        # has zero empirical dispersion; ridge is the only added uncertainty.
+        cov = (np.cov(codes, rowvar=False) if len(codes) > 1
+               else np.zeros((d, d), dtype=np.float64))
         cov = np.atleast_2d(cov) + ridge * np.eye(d)
         return mean, cov
 
@@ -61,13 +70,22 @@ def fit_latent_gaussian(pca: PCA, X, y=None, ridge: float = 1e-6):
         return _gaussian(Z)
 
     y = np.asarray(y)
+    if y.ndim != 1 or len(y) != len(Z):
+        raise ValueError("y doit avoir une étiquette par observation de X.")
     return {int(label): _gaussian(Z[y == label]) for label in np.unique(y)}
 
 
 def sample_latent(mean, cov, n: int, seed: int = 0):
     """Draw `n` latent vectors from the Gaussian ``N(mean, cov)`` -> (n, d)."""
+    n = positive_integer(n, "n")
+    mean, cov = np.asarray(mean, dtype=np.float64), np.asarray(cov, dtype=np.float64)
+    if (mean.ndim != 1 or mean.size == 0 or cov.shape != (mean.size, mean.size)
+            or not np.isfinite(mean).all() or not np.isfinite(cov).all()):
+        raise ValueError("mean et cov doivent définir une gaussienne finie de dimensions compatibles.")
+    if not np.allclose(cov, cov.T, rtol=1e-7, atol=1e-10):
+        raise ValueError("cov doit être symétrique.")
     rng = np.random.default_rng(seed)
-    return rng.multivariate_normal(np.asarray(mean), np.asarray(cov), size=n)
+    return rng.multivariate_normal(mean, cov, size=n, check_valid="raise")
 
 
 def generate(pca: PCA, latents, as_images: bool = False):

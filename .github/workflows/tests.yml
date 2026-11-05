@@ -1,0 +1,29 @@
+name: Scientific regression checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+      TF_CPP_MIN_LOG_LEVEL: '2'
+      GRADIO_ANALYTICS_ENABLED: 'False'
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+      - run: python -m pip install -r requirements-lock.txt
+      - run: python -m pip check
+      - run: python -m pytest -q tests
+      - run: python scripts/smoke_algorithms.py --output tmp/ci-smoke

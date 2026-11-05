@@ -47,6 +47,7 @@ codec — voir la discussion des 3 tâches dans algo.py.
 import numpy as np
 
 from utils.array_cache import ArrayFingerprints
+from utils.neural_config import positive_integer, validate_training_config
 
 IMG_SIZE = 28
 IMAGE_DIM = IMG_SIZE * IMG_SIZE
@@ -77,6 +78,10 @@ def layer_dims(cfg):
     C'est la SEULE source de vérité des shapes : params_from_flat et
     init_params s'appuient dessus, donc le redécoupage est déterministe.
     """
+    positive_integer(cfg["latent_dim"], "latent_dim")
+    for name in ("g_hidden", "d_hidden"):
+        for units in cfg[name]:
+            positive_integer(units, name)
     g_dims = [int(cfg["latent_dim"])] + [int(d) for d in cfg["g_hidden"]] + [IMAGE_DIM]
     d_dims = [IMAGE_DIM] + [int(d) for d in cfg["d_hidden"]] + [1]
     return g_dims, d_dims
@@ -213,8 +218,8 @@ def _bce_with_logits(logits, target):
 
 def batch_ranges(n, batch_size):
     """Return half-open batches that cover every sample exactly once."""
-    if int(n) < 1 or int(batch_size) < 1:
-        raise ValueError("n et batch_size doivent être strictement positifs.")
+    positive_integer(n, "n")
+    positive_integer(batch_size, "batch_size")
     return [
         (start, min(start + int(batch_size), int(n)))
         for start in range(0, int(n), int(batch_size))
@@ -233,19 +238,24 @@ def train_gan(X, cfg, progress=None):
     ~5 moments de l'entraînement : la maturation du générateur se voit d'un
     coup d'œil, colonne par colonne.
     """
+    validate_training_config(cfg)
+    real_label = float(cfg.get("label_smoothing", 0.9))
+    if not np.isfinite(real_label) or not 0 < real_label <= 1:
+        raise ValueError("label_smoothing doit être fini et compris dans ]0, 1].")
     seed = int(cfg["seed"])
     rng = np.random.default_rng(seed)
 
     latent_dim = int(cfg["latent_dim"])
     batch_size = int(cfg["batch_size"])
     epochs = int(cfg["epochs"])
-    real_label = float(cfg.get("label_smoothing", 0.9))
 
     X = np.asarray(X, dtype=np.float32)
     if X.ndim != 2 or X.shape[0] == 0 or X.shape[1] != IMAGE_DIM:
         raise ValueError(f"X doit avoir la forme (n, {IMAGE_DIM}), reçu : {X.shape}.")
     if not np.isfinite(X).all():
         raise ValueError("X contient des valeurs NaN ou infinies.")
+    if np.any(X < 0) or np.any(X > 1):
+        raise ValueError("Les images du GAN doivent être normalisées dans [0, 1].")
     n = len(X)
     batch_size = min(batch_size, n)
 
@@ -288,6 +298,9 @@ def train_gan(X, cfg, progress=None):
             grads_f, _ = mlp_backward(delta_f, d_layers, caches_f, "bce_logit")
             grads_d = [[gr[0] + gf[0], gr[1] + gf[1]]
                        for gr, gf in zip(grads_r, grads_f)]
+            # Both discriminator accuracies describe the same pre-update batch.
+            real_accuracy = float(np.mean(logits_r > 0))
+            fake_accuracy = float(np.mean(logits_f <= 0))
             opt_d.step(d_layers, grads_d)
 
             # ---- Pas de G (non saturant) : faire dire « vrai » à D.
@@ -303,10 +316,12 @@ def train_gan(X, cfg, progress=None):
             grads_g, _ = mlp_backward(d_x_fake, g_layers, caches_g, "sigmoid")
             opt_g.step(g_layers, grads_g)
 
+            if not np.isfinite(g_loss) or not np.isfinite(d_loss):
+                raise FloatingPointError("Loss GAN non finie : vérifier données et learning_rate.")
             g_sum += g_loss * m
             d_sum += d_loss * m
-            racc_sum += float(np.mean(logits_r > 0)) * m
-            facc_sum += float(np.mean(logits_f <= 0)) * m
+            racc_sum += real_accuracy * m
+            facc_sum += fake_accuracy * m
             seen += m
 
         history["g_loss"].append(g_sum / seen)

@@ -29,6 +29,7 @@ import numpy as np
 import tensorflow as tf
 
 from utils.array_cache import ArrayFingerprints
+from utils.neural_config import validate_architecture, validate_training_config
 
 IMG_SIZE = 28
 IMAGE_DIM = IMG_SIZE * IMG_SIZE
@@ -137,6 +138,7 @@ def _build_conv(cfg):
 
 def build_models(cfg):
     """(encoder, decoder) neufs — poids aléatoires — pour cette config."""
+    validate_architecture(cfg)
     if cfg["architecture"] == "conv":
         return _build_conv(cfg)
     return _build_dense(cfg)
@@ -185,6 +187,7 @@ def train_autoencoder(X, cfg, progress=None):
     pixel, que l'architecture soit dense ou conv — les deux moyennent sur tous
     les éléments de sortie).
     """
+    validate_training_config(cfg)
     seed = int(cfg["seed"])
     tf.keras.utils.set_random_seed(seed)
 

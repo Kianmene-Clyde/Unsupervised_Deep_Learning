@@ -2,11 +2,14 @@ import numpy as np
 import pytest
 
 from utils.metrics_common import (
+    fit_pca_features,
     frechet_distance,
+    generation_diagnostics,
     mse,
     psnr,
     purity,
     silhouette,
+    serialized_storage,
     ssim,
 )
 from utils.pca.dim_reduction import components_for_variance, fit_pca
@@ -55,3 +58,31 @@ def test_frechet_is_zero_for_identical_rank_deficient_clouds():
     points = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
     assert frechet_distance(points, points) == pytest.approx(0.0, abs=1e-10)
     assert frechet_distance(points, points + 1.0) > 0.0
+
+
+def test_fd_pca_rejects_components_beyond_training_rank_bound():
+    with pytest.raises(ValueError, match="n_components"):
+        fit_pca_features(np.ones((3, 10)), n_components=3)
+
+
+def test_storage_includes_model_and_container_costs():
+    codes = np.zeros((10, 2), dtype=np.float32)
+    storage = serialized_storage(codes, {"dictionary": np.eye(2)}, {"algorithm": "example"})
+    assert storage["code_npz_bytes"] > 0
+    assert storage["model_npz_bytes"] > 0
+    assert storage["amortized_npz_bits_per_image"] == pytest.approx(
+        8 * (storage["code_npz_bytes"] + storage["model_npz_bytes"]) / 10)
+    # A tiny batch can cost more than its raw codes because headers are included.
+    assert storage["code_npz_bytes"] > codes.nbytes
+
+
+def test_generation_diagnostics_exposes_exact_collapse_and_training_copy():
+    train = np.array([[0., 0.], [1., 1.], [2., 2.]])
+    reference = train + 10.
+    generated = np.repeat(train[:1], 4, axis=0)
+    diagnostics = generation_diagnostics(train, reference, generated)
+    assert diagnostics["gen_unique_fraction"] == .25
+    assert diagnostics["gen_pixel_variance"] == 0.
+    assert diagnostics["gen_nearest_train_mse"] == 0.
+    assert diagnostics["gen_nearest_reference_mse"] > 0.
+    assert diagnostics["diagnostic_n_generated"] == 4

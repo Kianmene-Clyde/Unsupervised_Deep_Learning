@@ -160,16 +160,18 @@ def fit_pca(X, n_components=None, center="feature") -> PCA:
     # Step 5: decide how many leading axes to keep.
     if n_components is None:
         k = len(eigvals)
-    elif isinstance(n_components, float):
+    elif isinstance(n_components, (float, np.floating)):
         if not 0.0 < n_components <= 1.0:
             raise ValueError(f"n_components float must be in (0, 1], got {n_components!r}")
         k = (
-            int(np.searchsorted(np.cumsum(ratio), n_components) + 1)
+            min(len(eigvals), int(np.searchsorted(np.cumsum(ratio), n_components) + 1))
             if total_variance > np.finfo(np.float64).eps
             else 1
         )
-    else:
+    elif isinstance(n_components, (int, np.integer)) and not isinstance(n_components, bool):
         k = int(n_components)
+    else:
+        raise ValueError("n_components doit être un entier, une fraction de variance ou None.")
 
     if not 1 <= k <= X.shape[1]:
         raise ValueError(
@@ -203,8 +205,10 @@ def components_for_variance(pca: PCA, threshold: float) -> int:
     cum = cumulative_explained_variance(pca)
     if cum.size == 0 or cum[-1] <= np.finfo(np.float64).eps:
         return 0
+    if threshold > cum[-1] + 1e-12:
+        raise ValueError("Le spectre conservé ne permet pas d'atteindre ce seuil de variance.")
     # +1 converts a 0-based index into a count of components.
-    return int(np.searchsorted(cum, threshold) + 1)
+    return min(len(cum), int(np.searchsorted(cum, threshold) + 1))
 
 
 def n_components_for_variance(X, threshold: float = 0.90) -> int:
@@ -248,7 +252,9 @@ def plot_spectrum(pca: PCA, thresholds=(0.90, 0.95), n_show=50,
     import matplotlib.pyplot as plt
 
     cum = cumulative_explained_variance(pca)
-    ks = {thr: components_for_variance(pca, thr) for thr in thresholds}
+    ks = {thr: components_for_variance(pca, thr) for thr in thresholds
+          if cum.size and thr <= cum[-1] + 1e-12}
+    n_show = min(int(n_show), len(pca.explained_variance_ratio_))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
     ax1.bar(range(1, n_show + 1), pca.explained_variance_ratio_[:n_show], color=color)
@@ -292,10 +298,13 @@ def plot_spectrum_comparison(pcas, labels, colors=None, n_show=15, suptitle=None
     summary = []
     for pca, label, c in zip(pcas, labels, colors):
         cum = cumulative_explained_variance(pca)
-        k90 = components_for_variance(pca, 0.90)
+        k90 = (components_for_variance(pca, 0.90)
+               if cum.size and cum[-1] >= 0.90 - 1e-12 else None)
         summary.append((label, float(pca.explained_variance_ratio_[0]), k90))
-        ax1.plot(range(1, len(cum) + 1), cum, color=c, label=f"{label} (90% at {k90} comps)")
-        ax2.plot(range(1, n_show + 1), pca.explained_variance_ratio_[:n_show],
+        threshold_note = f"90% at {k90} comps" if k90 is not None else "90% not reached"
+        ax1.plot(range(1, len(cum) + 1), cum, color=c, label=f"{label} ({threshold_note})")
+        shown = min(int(n_show), len(pca.explained_variance_ratio_))
+        ax2.plot(range(1, shown + 1), pca.explained_variance_ratio_[:shown],
                  "o-", color=c, label=label)
     ax1.axhline(0.90, color="gray", ls="--", lw=1)
     ax1.set_title("Cumulative explained variance")

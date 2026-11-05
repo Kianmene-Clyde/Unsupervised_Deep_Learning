@@ -5,6 +5,8 @@ from autoencoder.utils.model import shape_input as ae_shape_input
 from gan.utils.model import batch_ranges, generate_batch, init_params, flat_weights, remember
 from vae.utils.model import shape_input as vae_shape_input
 from utils.array_cache import ArrayFingerprints
+from autoencoder.utils.codec import AECode
+from pca.utils.codec import PCACode
 
 
 @pytest.mark.parametrize("shape_input", [ae_shape_input, vae_shape_input])
@@ -46,3 +48,50 @@ def test_bound_weight_fingerprint_is_reused_and_prevents_mutation():
     assert not weights.flags.writeable
     with pytest.raises(ValueError):
         weights[0] = 99.0
+
+
+@pytest.mark.parametrize("code_type", [AECode, PCACode])
+def test_hashable_latent_code_owns_its_values_and_respects_signed_zero(code_type):
+    source = np.array([1.0, 0.0], dtype=np.float32)
+    code = code_type(source)
+    initial_hash = hash(code)
+    source[0] = 5.0
+    assert code.values[0] == 1.0
+    assert hash(code) == initial_hash
+    equal = code_type(np.array([1.0, -0.0], dtype=np.float32))
+    assert code == equal
+    assert hash(code) == hash(equal)
+
+
+def test_vae_epoch_loss_weights_each_observation_equally(monkeypatch):
+    import tensorflow as tf
+    import vae.utils.model as model
+
+    class Encoder:
+        trainable_variables = []
+
+        def __call__(self, X, training=False):
+            values = tf.zeros((tf.shape(X)[0], 2))
+            return values, values
+
+    class Decoder:
+        trainable_variables = []
+
+        def __call__(self, Z, training=False):
+            return tf.zeros((tf.shape(Z)[0], 784))
+
+    class NoUpdates:
+        def apply_gradients(self, gradients):
+            pass
+
+    monkeypatch.setattr(model, "build_models", lambda cfg: (Encoder(), Decoder()))
+    monkeypatch.setattr(model, "_optimizer", lambda cfg: NoUpdates())
+    X = np.zeros((17, 784), dtype=np.float32)
+    X[-1] = 1.0
+    cfg = dict(architecture="dense", latent_dim=2, seed=42, learning_rate=0.001,
+               epochs=1, batch_size=16, kl_weight=0.001)
+    _, _, history = model.train_vae(X, cfg)
+    # The fixed zero decoder has exactly 1/17 reconstruction error; a mean of
+    # the full-batch and singleton-batch losses would give a different answer.
+    assert history["reconstruction_loss"][0] == pytest.approx(1 / 17, abs=1e-7)
+    assert history["total_loss"][0] == pytest.approx(1 / 17, abs=1e-7)

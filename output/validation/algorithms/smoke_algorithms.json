@@ -1,0 +1,56 @@
+{
+  "purpose": "synthetic integration smoke; not scientific performance evidence",
+  "seed": 42,
+  "n_samples": 96,
+  "python": "3.12.11",
+  "results": [
+    {
+      "algorithm": "kmeas",
+      "status": "passed",
+      "model_bytes": 11750,
+      "reconstruction_mse": 0.0022947066463530064,
+      "capability": "native_codec",
+      "elapsed_s": 9.54866150000089
+    },
+    {
+      "algorithm": "kohonen",
+      "status": "passed",
+      "model_bytes": 11708,
+      "reconstruction_mse": 0.009514632634818554,
+      "capability": "native_codec",
+      "elapsed_s": 0.06197210000027553
+    },
+    {
+      "algorithm": "pca",
+      "status": "passed",
+      "model_bytes": 23729,
+      "reconstruction_mse": 9.640991474328306e-16,
+      "capability": "native_codec",
+      "elapsed_s": 0.7437906999984989
+    },
+    {
+      "algorithm": "autoencoder",
+      "status": "passed",
+      "model_bytes": 50027,
+      "reconstruction_mse": 0.037763241678476334,
+      "capability": "native_codec",
+      "elapsed_s": 1.3741981000021042
+    },
+    {
+      "algorithm": "vae",
+      "status": "passed",
+      "model_bytes": 50235,
+      "reconstruction_mse": 0.03797321394085884,
+      "capability": "native_codec",
+      "elapsed_s": 1.5293057999988378
+    },
+    {
+      "algorithm": "gan",
+      "status": "passed",
+      "model_bytes": 75536,
+      "reconstruction_mse": 0.03858639672398567,
+      "capability": "approximate_inversion",
+      "elapsed_s": 0.20983160000105272
+    }
+  ]
+}

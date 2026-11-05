@@ -44,6 +44,8 @@ dist/
 
 # Virtual environments
 .venv/
+.tools/
+.gradio/
 venv/
 myenv/
 env/
@@ -64,7 +66,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
-Scripts/
+/Scripts/
+!/scripts/
+!/scripts/*.py
 Lib/
 etc/
 pyvenv.cfg

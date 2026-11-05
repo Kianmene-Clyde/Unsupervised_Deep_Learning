@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import io
+import json
+
 import numpy as np
 from scipy import ndimage
 
@@ -158,10 +161,14 @@ def silhouette(X, labels, sample_size=2000, seed=42):
 
 
 def fit_pca_features(X_real, n_components=50, seed=42):
-    """Fit the deterministic PCA feature space used by the simplified FID."""
+    """Fit FD-PCA features on training data, never on held-out evaluation data.
+
+    FD-PCA is a Fréchet distance in a dataset-specific linear feature space;
+    it is not the standard Inception-feature FID. The caller owns split hygiene.
+    """
     del seed  # Kept for API compatibility; symmetric eigendecomposition is deterministic.
     X_real = _matrix(X_real, "X_real")
-    max_components = X_real.shape[1]
+    max_components = min(X_real.shape[1], len(X_real) - 1)
     if not isinstance(n_components, (int, np.integer)) or not 1 <= n_components <= max_components:
         raise ValueError(f"n_components doit être compris entre 1 et {max_components}.")
     if len(X_real) < 2:
@@ -224,8 +231,74 @@ def frechet_distance(F_real, F_gen):
 
 
 def frechet_from_images(X_real, X_gen, n_components=50, seed=42):
-    """Compute the simplified FID directly from two image batches."""
+    """Exploratory FD-PCA fitted on ``X_real`` (not a held-out benchmark).
+
+    For benchmarking, fit_pca_features(training_data) once and reuse that
+    frozen feature space for every model and evaluation batch instead.
+    """
     feature_space = fit_pca_features(X_real, n_components=n_components, seed=seed)
     return frechet_distance(
         pca_features(X_real, feature_space), pca_features(X_gen, feature_space)
     )
+
+
+def serialized_storage(codes, model_arrays, metadata=None):
+    """Measure concrete compressed NPZ payloads, including ZIP/NPY headers.
+
+    The model payload includes supplied fitted arrays and architecture metadata,
+    not the Python environment. Costs are amortized over exactly this code batch.
+    This is deliberately separate from an ideal bit-packed code length.
+    """
+    codes = np.asarray(codes)
+    if codes.ndim not in (1, 2) or len(codes) == 0 or not np.isfinite(codes).all():
+        raise ValueError("codes doit être un lot non vide de valeurs finies.")
+    arrays = {str(key): np.asarray(value) for key, value in model_arrays.items()}
+    if any(value.dtype.hasobject for value in arrays.values()):
+        raise ValueError("Les poids sérialisés ne doivent pas contenir d'objets Python.")
+    arrays["metadata_json"] = np.asarray(json.dumps(metadata or {}, sort_keys=True))
+    code_buffer, model_buffer = io.BytesIO(), io.BytesIO()
+    np.savez_compressed(code_buffer, codes=codes)
+    np.savez_compressed(model_buffer, **arrays)
+    code_bytes, model_bytes = code_buffer.tell(), model_buffer.tell()
+    return {
+        "code_npz_bytes": code_bytes,
+        "model_npz_bytes": model_bytes,
+        "amortized_npz_bits_per_image": 8.0 * (code_bytes + model_bytes) / len(codes),
+    }
+
+
+def generation_diagnostics(X_train, X_reference, X_generated, *, seed=42, limit=256):
+    """Bounded pixel-space diagnostics, not a proof of absence of memorization.
+
+    Exact uniqueness and pixel variance concern up to ``limit`` generated images.
+    Nearest-neighbor MSE uses independently subsampled training/reference pools of
+    at most ``limit`` images each. These pool sizes must accompany interpretation.
+    """
+    if not isinstance(limit, (int, np.integer)) or limit < 2:
+        raise ValueError("limit doit être un entier supérieur ou égal à 2.")
+    rng = np.random.default_rng(seed)
+    pools = []
+    for name, values in (("X_train", X_train), ("X_reference", X_reference),
+                         ("X_generated", X_generated)):
+        values = _matrix(values, name)
+        if len(values) > limit:
+            values = values[rng.choice(len(values), limit, replace=False)]
+        pools.append(values)
+    train, reference, generated = pools
+    if train.shape[1] != generated.shape[1] or reference.shape[1] != generated.shape[1]:
+        raise ValueError("Les lots doivent avoir la même dimension de pixels.")
+
+    def nearest_mse(pool):
+        squared = (np.sum(generated ** 2, axis=1)[:, None]
+                   + np.sum(pool ** 2, axis=1)[None, :] - 2.0 * generated @ pool.T)
+        return float(np.maximum(squared, 0).min(axis=1).mean() / generated.shape[1])
+
+    return {
+        "gen_unique_fraction": len(np.unique(generated, axis=0)) / len(generated),
+        "gen_pixel_variance": float(np.var(generated, axis=0).mean()),
+        "gen_nearest_train_mse": nearest_mse(train),
+        "gen_nearest_reference_mse": nearest_mse(reference),
+        "diagnostic_n_generated": len(generated),
+        "diagnostic_n_train": len(train),
+        "diagnostic_n_reference": len(reference),
+    }

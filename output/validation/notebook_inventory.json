@@ -1,0 +1,72 @@
+[
+  {
+    "path": "src/autoencoder/autoencodeur.ipynb",
+    "code_cells": 9,
+    "cells_with_outputs": 3,
+    "sha256": "f32fae5bf62a2e4db7b4f8eae30afa0f7b05aa6a6dd131144433be0e6185ab39",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/autoencoder/VAE.ipynb",
+    "code_cells": 9,
+    "cells_with_outputs": 8,
+    "sha256": "2b7bb944373c31b4d64d9b8a5a62028fefcfe3a22e5b9b0ac75f9eeef6af206a",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/autoencodeur - Copie.ipynb",
+    "code_cells": 9,
+    "cells_with_outputs": 8,
+    "sha256": "58285c265d5702aab6c636dec81c99069e1082ea8d7f9b42882e61f5ff2d6917",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/exploration.ipynb",
+    "code_cells": 7,
+    "cells_with_outputs": 7,
+    "sha256": "757ce3e92a2b8c53ca5945849dcc91e0ec3b2024f9a5b147d4585dd24dfeb1e0",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/kmeas/main.ipynb",
+    "code_cells": 8,
+    "cells_with_outputs": 7,
+    "sha256": "44f420f0d196e8e09eb1ad3649d7a1cb4018cf141459ea89800d0dfd0e3ea760",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/kohonen/main.ipynb",
+    "code_cells": 15,
+    "cells_with_outputs": 14,
+    "sha256": "6eb7311a94030eae1e5e3978f28090d1abe86a6541421752370c4dda67c24d53",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/pca/compression.ipynb",
+    "code_cells": 12,
+    "cells_with_outputs": 12,
+    "sha256": "681e572ac5ef676218d7ca462fd276764f122eda724f5240391f9e0d5bc32ff2",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/pca/dim_reduction.ipynb",
+    "code_cells": 15,
+    "cells_with_outputs": 14,
+    "sha256": "53c54b2979601bb5ba25ec353479a9d59488d5dfb3015f472364eb2d77d2cd7b",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/pca/generation.ipynb",
+    "code_cells": 14,
+    "cells_with_outputs": 14,
+    "sha256": "f06661b8dc284e3b9287cd40e4834d30694a9ca758f5c1bd6f8bda4c950b24ae",
+    "executed_during_intervention": false
+  },
+  {
+    "path": "src/vae/VAE.ipynb",
+    "code_cells": 9,
+    "cells_with_outputs": 8,
+    "sha256": "a69860d1b7bbac4762dde92f5bc9398b6ea270ab0e7940ad2e45b6f3ea330f52",
+    "executed_during_intervention": false
+  }
+]

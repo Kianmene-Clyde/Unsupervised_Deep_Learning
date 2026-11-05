@@ -1,0 +1,13 @@
+{
+  "http_status": 200,
+  "html_bytes": 2166227,
+  "component_count": 186,
+  "event_count": 120,
+  "dataset": "real MNIST, bounded to 200 train and 64 test",
+  "model": "PCA 8 components; validation artifact only",
+  "export_figure_count": 18,
+  "export_has_provenance_manifest": true,
+  "export_archive": "output\\validation\\ui\\export_pca.zip",
+  "url": "http://127.0.0.1:7860",
+  "external_share": false
+}

@@ -1,0 +1,27 @@
+{
+  "pca": {
+    "params": {
+      "n_components": 20,
+      "center": "feature"
+    },
+    "validation_mse": 0.026663928630825427
+  },
+  "vae": {
+    "params": {
+      "architecture": "dense",
+      "latent_dim": 10,
+      "kl_weight": 0.0,
+      "hidden_dims": "128-32",
+      "conv_filters": "32-64",
+      "hidden_activation": "relu",
+      "latent_activation": "linear",
+      "output_activation": "sigmoid",
+      "optimizer": "adam",
+      "learning_rate": 0.001,
+      "batch_size": 256,
+      "epochs": 3,
+      "seed": 42
+    },
+    "validation_mse": 0.22864764209888871
+  }
+}
